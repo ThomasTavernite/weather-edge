@@ -1,0 +1,191 @@
+// ═══════════════════════════════════════════════════════════
+//  WeatherEdge — api/overview.js
+//  Vercel Serverless Function
+//  Returns summary data for all 13 cities:
+//    forecasts, current temp, Kalshi market prices, signals
+// ═══════════════════════════════════════════════════════════
+
+const CITIES = [
+  { id: 'nyc',   name: 'New York City',  lat: 40.7128,  lon: -74.0060,  nws: 'KNYC', kalshi: 'KXHIGHNY'   },
+  { id: 'chi',   name: 'Chicago',        lat: 41.7868,  lon: -87.7522,  nws: 'KMDW', kalshi: 'KXHIGHCHI'  },
+  { id: 'mia',   name: 'Miami',          lat: 25.7959,  lon: -80.2870,  nws: 'KMIA', kalshi: 'KXHIGHMIA'  },
+  { id: 'lax',   name: 'Los Angeles',    lat: 33.9382,  lon: -118.3886, nws: 'KLAX', kalshi: 'KXHIGHLAX'  },
+  { id: 'sfo',   name: 'San Francisco',  lat: 37.6213,  lon: -122.3790, nws: 'KSFO', kalshi: 'KXHIGHTSFO' },
+  { id: 'phi',   name: 'Philadelphia',   lat: 39.8744,  lon: -75.2424,  nws: 'KPHL', kalshi: 'KXHIGHPHIL' },
+  { id: 'aus',   name: 'Austin',         lat: 30.1944,  lon: -97.6700,  nws: 'KAUS', kalshi: 'KXHIGHAUS'  },
+  { id: 'den',   name: 'Denver',         lat: 39.8561,  lon: -104.6737, nws: 'KDEN', kalshi: 'KXHIGHDEN'  },
+  { id: 'sea',   name: 'Seattle',        lat: 47.4502,  lon: -122.3088, nws: 'KSEA', kalshi: 'KXHIGHTSEA' },
+  { id: 'lv',    name: 'Las Vegas',      lat: 36.0840,  lon: -115.1537, nws: 'KLAS', kalshi: 'KXHIGHTLV'  },
+  { id: 'bos',   name: 'Boston',         lat: 42.3656,  lon: -71.0096,  nws: 'KBOS', kalshi: 'KXHIGHTBOS' },
+  { id: 'nola',  name: 'New Orleans',    lat: 29.9934,  lon: -90.2580,  nws: 'KMSY', kalshi: 'KXHIGHTNOLA'},
+  { id: 'dc',    name: 'Washington DC',  lat: 38.8512,  lon: -77.0402,  nws: 'KDCA', kalshi: 'KXHIGHTDC'  },
+];
+
+// ─── Safe Fetch ──────────────────────────────────────────
+async function safeFetch(url, timeout = 8000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeout);
+  try {
+    const res = await fetch(url, {
+      signal: controller.signal,
+      headers: {
+        'User-Agent': 'WeatherEdge/1.0',
+        'Accept': 'application/json'
+      }
+    });
+    clearTimeout(timer);
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    clearTimeout(timer);
+    return null;
+  }
+}
+
+// ─── Fetch Open-Meteo Forecast ───────────────────────────
+async function getOpenMeteo(city) {
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${city.lat}&longitude=${city.lon}&daily=temperature_2m_max,temperature_2m_min&temperature_unit=fahrenheit&timezone=auto&forecast_days=2`;
+  const data = await safeFetch(url);
+  if (!data?.daily) return null;
+  return { source: 'Open-Meteo', dates: data.daily.time, highs: data.daily.temperature_2m_max, lows: data.daily.temperature_2m_min };
+}
+
+// ─── Fetch NWS Forecast ──────────────────────────────────
+async function getNWSForecast(city) {
+  const pts = await safeFetch(`https://api.weather.gov/points/${city.lat},${city.lon}`);
+  if (!pts?.properties) return null;
+  const { gridId, gridX, gridY } = pts.properties;
+  const fc = await safeFetch(`https://api.weather.gov/gridpoints/${gridId}/${gridX},${gridY}/forecast`);
+  if (!fc?.properties?.periods) return null;
+
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+  let high = null, low = null;
+  for (const p of fc.properties.periods) {
+    if (p.startTime.slice(0, 10) === today) {
+      if (p.isDaytime) high = p.temperature;
+      else low = p.temperature;
+    }
+  }
+  return { source: 'NWS', high, low };
+}
+
+// ─── Fetch NWS Current Observation ───────────────────────
+async function getNWSObservation(city) {
+  const data = await safeFetch(`https://api.weather.gov/stations/${city.nws}/observations/latest`);
+  if (!data?.properties?.temperature?.value && data?.properties?.temperature?.value !== 0) return null;
+  const c = data.properties.temperature.value;
+  return {
+    tempF: Math.round((c * 9 / 5 + 32) * 10) / 10,
+    desc: data.properties.textDescription || ''
+  };
+}
+
+// ─── Fetch Kalshi Markets ────────────────────────────────
+async function getKalshi(seriesTicker) {
+  const url = `https://api.elections.kalshi.com/trade-api/v2/events?series_ticker=${seriesTicker}&status=open&with_nested_markets=true&limit=3`;
+  const data = await safeFetch(url);
+  if (!data?.events?.length) return null;
+
+  // Get the most recent open event (today's market)
+  const ev = data.events[0];
+  if (!ev.markets?.length) return null;
+
+  const markets = ev.markets.map(m => ({
+    ticker: m.ticker,
+    subtitle: m.yes_sub_title || m.subtitle || '',
+    yesAsk: m.yes_ask_dollars || m.yes_ask,
+    lastPrice: m.last_price_dollars || m.last_price,
+    volume: m.volume_fp || m.volume || 0
+  })).filter(m => m.subtitle);
+
+  return { eventTicker: ev.event_ticker, title: ev.title || '', subtitle: ev.sub_title || '', markets };
+}
+
+// ─── Build Signal ────────────────────────────────────────
+function buildSignal(consensusHigh, kalshiData) {
+  if (!kalshiData?.markets?.length || consensusHigh === null) return null;
+
+  // Find market favorite (highest priced bracket)
+  const sorted = [...kalshiData.markets].sort((a, b) => {
+    return (parseFloat(b.lastPrice) || parseFloat(b.yesAsk) || 0) - (parseFloat(a.lastPrice) || parseFloat(a.yesAsk) || 0);
+  });
+  const fav = sorted[0];
+
+  // Find bracket matching consensus
+  let match = null;
+  for (const m of kalshiData.markets) {
+    const s = m.subtitle.toLowerCase();
+    const range = s.match(/(\d+)°?\s*to\s*(\d+)/);
+    const below = s.match(/(\d+)°?\s*or\s*below/);
+    const above = s.match(/(\d+)°?\s*or\s*above/);
+
+    if (range && consensusHigh >= parseInt(range[1]) && consensusHigh <= parseInt(range[2]) + 0.9) { match = m; break; }
+    if (below && consensusHigh <= parseInt(below[1])) { match = m; break; }
+    if (above && consensusHigh >= parseInt(above[1])) { match = m; break; }
+  }
+
+  if (!match || !fav) return null;
+
+  return {
+    type: match.ticker === fav.ticker ? 'ALIGNED' : 'DIVERGENCE',
+    consensusBracket: match.subtitle,
+    consensusBracketPrice: parseFloat(match.lastPrice) || parseFloat(match.yesAsk) || 0,
+    marketFavorite: fav.subtitle,
+    marketFavoritePrice: parseFloat(fav.lastPrice) || parseFloat(fav.yesAsk) || 0
+  };
+}
+
+// ─── Main Handler ────────────────────────────────────────
+export default async function handler(req, res) {
+  // CORS headers
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET');
+  res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=600');
+
+  try {
+    // Fetch all cities in parallel — each city fetches 3 sources at once
+    const results = await Promise.all(CITIES.map(async (city) => {
+      const [openMeteo, nwsForecast, observation, kalshi] = await Promise.all([
+        getOpenMeteo(city),
+        getNWSForecast(city),
+        getNWSObservation(city),
+        getKalshi(city.kalshi)
+      ]);
+
+      // Build forecasts array
+      const forecasts = [];
+      const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+
+      if (openMeteo?.dates) {
+        const idx = openMeteo.dates.indexOf(today);
+        if (idx !== -1) forecasts.push({ source: 'Open-Meteo', high: openMeteo.highs[idx], low: openMeteo.lows[idx] });
+      }
+      if (nwsForecast?.high !== null || nwsForecast?.low !== null) {
+        forecasts.push({ source: 'NWS', high: nwsForecast?.high, low: nwsForecast?.low });
+      }
+
+      // Consensus
+      const highs = forecasts.filter(f => f.high != null).map(f => f.high);
+      const lows = forecasts.filter(f => f.low != null).map(f => f.low);
+      const consensusHigh = highs.length ? Math.round(highs.reduce((a, b) => a + b, 0) / highs.length * 10) / 10 : null;
+      const consensusLow = lows.length ? Math.round(lows.reduce((a, b) => a + b, 0) / lows.length * 10) / 10 : null;
+
+      return {
+        id: city.id,
+        name: city.name,
+        currentTemp: observation?.tempF || null,
+        currentDesc: observation?.desc || '',
+        forecasts,
+        consensus: { high: consensusHigh, low: consensusLow },
+        kalshi: kalshi,
+        signal: buildSignal(consensusHigh, kalshi),
+      };
+    }));
+
+    res.status(200).json({ cities: results, updatedAt: new Date().toISOString() });
+
+  } catch (err) {
+    console.error('Overview error:', err);
+    res.status(500).json({ error: 'Failed to fetch data', detail: err.message });
+  }
+}

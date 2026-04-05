@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WeatherEdge — Kalshi Weather Trading Signals</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #0a0e17;
+    color: #e1e4ea;
+    min-height: 100vh;
+  }
+
+  /* ─── Header ─── */
+  .header {
+    background: linear-gradient(135deg, #0f1724 0%, #141e30 100%);
+    border-bottom: 1px solid #1e293b;
+    padding: 20px 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .logo h1 { font-size: 22px; font-weight: 700; color: #fff; }
+  .logo h1 span { color: #3b82f6; }
+  .logo-sub { font-size: 12px; color: #64748b; letter-spacing: 0.5px; }
+  .header-right { display: flex; align-items: center; gap: 16px; font-size: 13px; color: #64748b; }
+  .status-dot {
+    width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 4px;
+  }
+  .status-dot.live { background: #22c55e; box-shadow: 0 0 6px #22c55e; }
+  .status-dot.loading { background: #f59e0b; animation: pulse 1.5s infinite; }
+  @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
+
+  /* ─── Main ─── */
+  .container { max-width: 1200px; margin: 0 auto; padding: 24px; }
+  .section-label {
+    font-size: 13px; color: #64748b; text-transform: uppercase;
+    letter-spacing: 1px; margin-bottom: 16px; font-weight: 600;
+  }
+  .city-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+    gap: 16px; margin-bottom: 32px;
+  }
+
+  /* ─── City Cards ─── */
+  .city-card {
+    background: #111827; border: 1px solid #1e293b; border-radius: 12px;
+    padding: 20px; cursor: pointer; transition: all 0.2s;
+  }
+  .city-card:hover {
+    border-color: #3b82f6; transform: translateY(-1px);
+    box-shadow: 0 4px 20px rgba(59,130,246,0.1);
+  }
+  .card-top {
+    display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px;
+  }
+  .city-name { font-size: 18px; font-weight: 600; color: #fff; }
+  .current-temp { font-size: 28px; font-weight: 700; color: #fff; line-height: 1; }
+  .current-temp .unit { font-size: 14px; color: #64748b; font-weight: 400; }
+  .current-desc { font-size: 12px; color: #64748b; margin-top: 2px; text-align: right; }
+
+  .forecast-row { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+  .forecast-chip {
+    background: #1e293b; border-radius: 6px; padding: 6px 10px;
+    font-size: 12px; display: flex; flex-direction: column; align-items: center; min-width: 80px;
+  }
+  .forecast-chip .src { color: #64748b; font-size: 10px; margin-bottom: 2px; }
+  .forecast-chip .val { color: #e1e4ea; font-weight: 600; }
+  .forecast-chip.consensus { background: #172033; border: 1px solid #3b82f6; }
+  .forecast-chip.consensus .src { color: #3b82f6; }
+  .forecast-chip.consensus .val { color: #3b82f6; }
+
+  .consensus-row {
+    background: #172033; border-radius: 8px; padding: 10px 14px;
+    display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;
+  }
+  .consensus-label { font-size: 12px; color: #94a3b8; }
+  .consensus-val { font-size: 18px; font-weight: 700; color: #3b82f6; }
+
+  /* Signal badges */
+  .signal-badge {
+    display: inline-block; padding: 4px 10px; border-radius: 6px;
+    font-size: 12px; font-weight: 600; letter-spacing: 0.5px; margin-top: 6px;
+  }
+  .signal-badge.aligned { background: rgba(34,197,94,0.15); color: #22c55e; border: 1px solid rgba(34,197,94,0.3); }
+  .signal-badge.divergence { background: rgba(245,158,11,0.15); color: #f59e0b; border: 1px solid rgba(245,158,11,0.3); }
+  .signal-badge.nodata { background: rgba(100,116,139,0.15); color: #64748b; border: 1px solid rgba(100,116,139,0.3); }
+
+  .signal-detail { font-size: 12px; color: #94a3b8; margin-top: 8px; line-height: 1.5; }
+  .signal-detail strong { color: #e1e4ea; }
+
+  .kalshi-link {
+    display: inline-block; margin-top: 14px; padding: 8px 16px;
+    background: #3b82f6; color: #fff; text-decoration: none;
+    border-radius: 8px; font-size: 13px; font-weight: 600; transition: background 0.2s;
+  }
+  .kalshi-link:hover { background: #2563eb; }
+
+  /* ─── Modal ─── */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+    z-index: 100; overflow-y: auto; padding: 40px 20px;
+  }
+  .modal-overlay.active { display: block; }
+  .modal {
+    max-width: 700px; margin: 0 auto; background: #111827;
+    border: 1px solid #1e293b; border-radius: 16px; padding: 28px;
+  }
+  .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+  .modal-header h2 { font-size: 22px; color: #fff; }
+  .modal-close {
+    background: #1e293b; border: none; color: #94a3b8; font-size: 20px;
+    width: 36px; height: 36px; border-radius: 8px; cursor: pointer;
+  }
+  .modal-close:hover { background: #334155; color: #fff; }
+
+  .bracket-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+  .bracket-table th {
+    text-align: left; padding: 10px 12px; font-size: 12px; color: #64748b;
+    text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #1e293b;
+  }
+  .bracket-table td { padding: 10px 12px; font-size: 14px; border-bottom: 1px solid #1e293b; }
+  .bracket-table tr.consensus-match { background: rgba(59,130,246,0.1); }
+  .bracket-table tr.consensus-match td:first-child { border-left: 3px solid #3b82f6; }
+  .price-cell { font-weight: 600; color: #fff; }
+
+  /* ─── Loading ─── */
+  .loading-container { text-align: center; padding: 80px 20px; color: #64748b; }
+  .loading-container h2 { color: #94a3b8; margin-bottom: 12px; }
+  .spinner {
+    width: 40px; height: 40px; border: 3px solid #1e293b; border-top-color: #3b82f6;
+    border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 20px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ─── Footer ─── */
+  .footer {
+    text-align: center; padding: 32px 24px; font-size: 12px; color: #475569;
+    border-top: 1px solid #1e293b; margin-top: 40px;
+  }
+  .footer a { color: #3b82f6; text-decoration: none; }
+  .footer a:hover { text-decoration: underline; }
+
+  @media (max-width: 500px) {
+    .city-grid { grid-template-columns: 1fr; }
+    .header { padding: 16px; }
+    .container { padding: 16px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">
+    <h1>Weather<span>Edge</span></h1>
+    <div class="logo-sub">Kalshi Weather Market Signals</div>
+  </div>
+  <div class="header-right">
+    <span><span class="status-dot loading" id="statusDot"></span> <span id="statusText">Loading...</span></span>
+    <span id="updateTime"></span>
+  </div>
+</div>
+
+<div class="container">
+  <div id="mainContent">
+    <div class="loading-container">
+      <div class="spinner"></div>
+      <h2>Fetching live data...</h2>
+      <p>Pulling forecasts from NWS & Open-Meteo, market prices from Kalshi</p>
+      <p style="margin-top:8px;font-size:12px;color:#475569">First load takes ~15 seconds (13 cities × 3 sources)</p>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="modalTitle">City</h2>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div id="modalBody"></div>
+  </div>
+</div>
+
+<div class="footer">
+  <p>WeatherEdge is not financial advice. Markets settle via <a href="https://help.kalshi.com/markets/popular-markets/weather-markets" target="_blank">NWS Daily Climate Reports</a>.</p>
+  <p style="margin-top:8px;">Trade on <a href="https://kalshi.com/category/climate" target="_blank">Kalshi</a> — CFTC regulated prediction markets.</p>
+</div>
+
+<script>
+// ─── Store loaded data for modal reuse ───────────────────
+let ALL_DATA = [];
+
+function formatPrice(p) {
+  if (p === null || p === undefined) return '--';
+  const n = parseFloat(p);
+  if (isNaN(n)) return '--';
+  if (n < 1) return Math.round(n * 100) + '¢';
+  return '$' + n.toFixed(2);
+}
+
+// ─── Load Overview ───────────────────────────────────────
+async function loadOverview() {
+  try {
+    const res = await fetch('/api/overview');
+    const json = await res.json();
+    ALL_DATA = json.cities || [];
+
+    // Update status bar
+    document.getElementById('statusDot').className = 'status-dot live';
+    document.getElementById('statusText').textContent = 'Live';
+    if (json.updatedAt) {
+      document.getElementById('updateTime').textContent = 'Updated ' + new Date(json.updatedAt).toLocaleTimeString();
+    }
+
+    // Split into categories
+    const divergences = ALL_DATA.filter(c => c.signal?.type === 'DIVERGENCE');
+    const aligned = ALL_DATA.filter(c => c.signal?.type === 'ALIGNED');
+    const noData = ALL_DATA.filter(c => !c.signal);
+
+    let html = '';
+
+    if (divergences.length > 0) {
+      html += `<div class="section-label">⚡ Potential Opportunities (${divergences.length})</div>`;
+      html += '<div class="city-grid">' + divergences.map(renderCard).join('') + '</div>';
+    }
+    if (aligned.length > 0) {
+      html += `<div class="section-label">✓ Market Aligned with Forecasts (${aligned.length})</div>`;
+      html += '<div class="city-grid">' + aligned.map(renderCard).join('') + '</div>';
+    }
+    if (noData.length > 0) {
+      html += `<div class="section-label">⏳ Awaiting Data (${noData.length})</div>`;
+      html += '<div class="city-grid">' + noData.map(renderCard).join('') + '</div>';
+    }
+
+    if (!html) html = '<div class="loading-container"><h2>No active markets right now</h2><p>Kalshi weather markets typically open daily around 5 AM ET</p></div>';
+
+    document.getElementById('mainContent').innerHTML = html;
+
+  } catch (e) {
+    console.error('Load failed:', e);
+    document.getElementById('mainContent').innerHTML = `
+      <div class="loading-container">
+        <h2>Loading data...</h2>
+        <p>Function is warming up. Retrying in 10 seconds...</p>
+      </div>`;
+    setTimeout(loadOverview, 10000);
+  }
+}
+
+function renderCard(c) {
+  const temp = c.currentTemp !== null ? Math.round(c.currentTemp) + '<span class="unit">°F</span>' : '--';
+  const consensus = c.consensus?.high !== null ? c.consensus.high + '°F' : '--';
+
+  let badge = '<span class="signal-badge nodata">NO DATA YET</span>';
+  let detail = '';
+
+  if (c.signal) {
+    if (c.signal.type === 'DIVERGENCE') {
+      badge = '<span class="signal-badge divergence">⚡ DIVERGENCE</span>';
+      detail = `Forecasts → <strong>${c.signal.consensusBracket}</strong> (${formatPrice(c.signal.consensusBracketPrice)}) · Market favors <strong>${c.signal.marketFavorite}</strong> (${formatPrice(c.signal.marketFavoritePrice)})`;
+    } else {
+      badge = '<span class="signal-badge aligned">✓ ALIGNED</span>';
+      detail = `Forecasts & market agree: <strong>${c.signal.marketFavorite}</strong> at ${formatPrice(c.signal.marketFavoritePrice)}`;
+    }
+  }
+
+  return `
+    <div class="city-card" onclick="openCity('${c.id}')">
+      <div class="card-top">
+        <div>
+          <div class="city-name">${c.name}</div>
+          ${badge}
+        </div>
+        <div style="text-align:right">
+          <div class="current-temp">${temp}</div>
+          <div class="current-desc">${c.currentDesc || 'Current'}</div>
+        </div>
+      </div>
+      <div class="forecast-row">
+        ${(c.forecasts || []).map(f => `
+          <div class="forecast-chip">
+            <span class="src">${f.source}</span>
+            <span class="val">H: ${f.high != null ? f.high + '°' : '--'}</span>
+          </div>
+        `).join('')}
+        ${c.consensus?.high != null ? `
+          <div class="forecast-chip consensus">
+            <span class="src">Consensus</span>
+            <span class="val">${c.consensus.high}°F</span>
+          </div>
+        ` : ''}
+      </div>
+      ${detail ? `<div class="signal-detail">${detail}</div>` : ''}
+      <a href="https://kalshi.com/category/climate" target="_blank" class="kalshi-link" onclick="event.stopPropagation()">Trade on Kalshi →</a>
+    </div>`;
+}
+
+// ─── Modal (uses already-loaded data) ────────────────────
+function openCity(id) {
+  const c = ALL_DATA.find(d => d.id === id);
+  if (!c) return;
+
+  document.getElementById('modal').classList.add('active');
+  document.getElementById('modalTitle').textContent = c.name;
+
+  let html = '';
+
+  // Current temp
+  if (c.currentTemp !== null) {
+    html += `<div class="consensus-row">
+      <span class="consensus-label">Current Temp — ${c.currentDesc || 'NWS Station'}</span>
+      <span class="consensus-val">${c.currentTemp}°F</span>
+    </div>`;
+  }
+
+  // Forecasts
+  html += '<div class="section-label" style="margin-top:0">Forecasts for Today</div>';
+  html += '<div class="forecast-row" style="margin-bottom:20px">';
+  (c.forecasts || []).forEach(f => {
+    html += `<div class="forecast-chip">
+      <span class="src">${f.source}</span>
+      <span class="val">H: ${f.high != null ? f.high + '°' : '--'}  L: ${f.low != null ? f.low + '°' : '--'}</span>
+    </div>`;
+  });
+  if (c.consensus?.high != null) {
+    html += `<div class="forecast-chip consensus">
+      <span class="src">Consensus</span>
+      <span class="val">H: ${c.consensus.high}°  L: ${c.consensus.low || '--'}°</span>
+    </div>`;
+  }
+  html += '</div>';
+
+  // Kalshi brackets table
+  if (c.kalshi?.markets?.length) {
+    html += `<div class="section-label">Kalshi Market — ${c.kalshi.title || c.kalshi.subtitle || 'High Temp'}</div>`;
+    html += '<table class="bracket-table"><thead><tr><th>Bracket</th><th>Price</th><th>Volume</th></tr></thead><tbody>';
+
+    for (const m of c.kalshi.markets) {
+      const price = parseFloat(m.lastPrice) || parseFloat(m.yesAsk) || 0;
+      const isMatch = c.signal?.consensusBracket === m.subtitle;
+      html += `<tr class="${isMatch ? 'consensus-match' : ''}">
+        <td>${m.subtitle}${isMatch ? ' ← Forecast' : ''}</td>
+        <td class="price-cell">${formatPrice(price)}</td>
+        <td style="color:#64748b">${parseInt(m.volume || 0).toLocaleString()}</td>
+      </tr>`;
+    }
+    html += '</tbody></table>';
+    html += `<a href="https://kalshi.com/category/climate" target="_blank" class="kalshi-link">Trade This Market on Kalshi →</a>`;
+  } else {
+    html += '<p style="color:#64748b;margin-top:16px">No active Kalshi markets found for today.</p>';
+  }
+
+  document.getElementById('modalBody').innerHTML = html;
+}
+
+function closeModal() { document.getElementById('modal').classList.remove('active'); }
+
+document.getElementById('modal').addEventListener('click', e => {
+  if (e.target === document.getElementById('modal')) closeModal();
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+// ─── Init ────────────────────────────────────────────────
+loadOverview();
+setInterval(loadOverview, 5 * 60 * 1000);
+</script>
+</body>
+</html>
