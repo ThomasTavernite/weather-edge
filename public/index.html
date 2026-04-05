@@ -137,6 +137,37 @@
   @keyframes spin { to { transform: rotate(360deg); } }
 
   /* Disclaimer */
+  /* How It Works */
+  .how-it-works {
+    background: #111827; border: 1px solid #1e293b; border-radius: 12px;
+    padding: 24px; margin-bottom: 32px;
+  }
+  .how-it-works h2 { font-size: 16px; color: #fff; margin-bottom: 16px; }
+  .how-toggle {
+    background: #1e293b; border: none; color: #3b82f6; font-size: 13px;
+    font-weight: 600; padding: 8px 16px; border-radius: 8px; cursor: pointer;
+    transition: background 0.2s;
+  }
+  .how-toggle:hover { background: #334155; }
+  .how-content { display: none; margin-top: 16px; }
+  .how-content.open { display: block; }
+  .how-step {
+    display: flex; gap: 14px; margin-bottom: 18px; align-items: flex-start;
+  }
+  .step-num {
+    background: #3b82f6; color: #fff; font-weight: 700; font-size: 13px;
+    width: 28px; height: 28px; border-radius: 50%; display: flex;
+    align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .step-text h3 { font-size: 14px; color: #e1e4ea; margin-bottom: 4px; }
+  .step-text p { font-size: 13px; color: #94a3b8; line-height: 1.6; }
+  .signal-example {
+    background: #0a0e17; border: 1px solid #1e293b; border-radius: 8px;
+    padding: 14px 16px; margin-top: 12px; font-size: 13px; color: #94a3b8; line-height: 1.7;
+  }
+  .signal-example strong { color: #f59e0b; }
+  .signal-example .green { color: #22c55e; }
+
   .disclaimer {
     background: #111827; border: 1px solid #1e293b; border-radius: 12px;
     padding: 20px 24px; margin-top: 32px;
@@ -172,6 +203,55 @@
 </div>
 
 <div class="container">
+  <!-- How It Works -->
+  <div class="how-it-works">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+      <h2>📖 How to Read This Dashboard</h2>
+      <button class="how-toggle" onclick="toggleHow()">Show Guide ▾</button>
+    </div>
+    <div class="how-content" id="howContent">
+      <div class="how-step">
+        <div class="step-num">1</div>
+        <div class="step-text">
+          <h3>We pull forecasts from multiple sources</h3>
+          <p>Every few minutes, WeatherEdge checks the National Weather Service (NWS) and Open-Meteo for their high/low temperature forecasts for each city. These are the same sources professional weather traders use. We average them into a single <strong style="color:#3b82f6">Consensus</strong> forecast.</p>
+        </div>
+      </div>
+      <div class="how-step">
+        <div class="step-num">2</div>
+        <div class="step-text">
+          <h3>We compare forecasts against Kalshi's market prices</h3>
+          <p>Kalshi lists temperature markets with brackets like "72° to 73°" or "74° to 75°." Each bracket has a price — that price represents what traders collectively think the probability is. A bracket priced at 29¢ means traders think there's roughly a 29% chance the actual high falls in that range. If you buy "Yes" at 29¢ and it hits, you get $1.00 back — a profit of 71¢ per contract.</p>
+        </div>
+      </div>
+      <div class="how-step">
+        <div class="step-num">3</div>
+        <div class="step-text">
+          <h3>The "← Forecast" tag shows where forecasts point</h3>
+          <p>When you click a city and see the bracket table, the row tagged <strong style="color:#3b82f6">← Forecast</strong> is the bracket the consensus temperature falls into. This is what the weather models think will actually happen.</p>
+        </div>
+      </div>
+      <div class="how-step">
+        <div class="step-num">4</div>
+        <div class="step-text">
+          <h3>Signals tell you if the market agrees or disagrees</h3>
+          <p>This is the key part:</p>
+          <div class="signal-example">
+            <span class="green">✓ ALIGNED</span> — The forecast consensus and the market's most-expensive bracket are the same. Traders and weather models agree. There's likely no edge here.<br><br>
+            <strong>⚡ DIVERGENCE</strong> — The forecast consensus points to a different bracket than what the market favors. This is where a potential opportunity exists. Forecasters say one thing, traders are pricing another. Someone is wrong — and weather forecasts, especially within 24 hours, tend to be quite accurate.
+          </div>
+        </div>
+      </div>
+      <div class="how-step">
+        <div class="step-num">5</div>
+        <div class="step-text">
+          <h3>Important: Divergence ≠ guaranteed profit</h3>
+          <p>Weather models can be wrong. Local conditions like cloud cover, marine layers, or sudden wind shifts can throw off even the best forecasts. Kalshi markets settle based on the <strong style="color:#e1e4ea">official NWS Daily Climate Report</strong> — not the forecast. A divergence signal means "this is worth looking into," not "this is free money." Always do your own research and never trade more than you can afford to lose.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div id="mainContent">
     <div class="loading-container">
       <div class="spinner"></div>
@@ -406,6 +486,13 @@ document.getElementById('modal').addEventListener('click', e => {
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
 
 // ─── Init + Auto-Refresh Every 2 Minutes ─────────────────
+function toggleHow() {
+  const c = document.getElementById('howContent');
+  const btn = document.querySelector('.how-toggle');
+  c.classList.toggle('open');
+  btn.textContent = c.classList.contains('open') ? 'Hide Guide ▴' : 'Show Guide ▾';
+}
+
 loadOverview();
 setInterval(loadOverview, 2 * 60 * 1000);
 </script>
