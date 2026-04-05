@@ -57,12 +57,22 @@
     box-shadow: 0 4px 20px rgba(59,130,246,0.1);
   }
   .card-top {
-    display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px;
+    display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px;
   }
   .city-name { font-size: 18px; font-weight: 600; color: #fff; }
   .current-temp { font-size: 28px; font-weight: 700; color: #fff; line-height: 1; }
   .current-temp .unit { font-size: 14px; color: #64748b; font-weight: 400; }
   .current-desc { font-size: 12px; color: #64748b; margin-top: 2px; text-align: right; }
+
+  /* Market date badge on cards */
+  .market-date-badge {
+    display: inline-block; padding: 4px 10px; border-radius: 6px; font-size: 11px;
+    font-weight: 600; margin-bottom: 10px;
+    background: rgba(59,130,246,0.1); color: #60a5fa; border: 1px solid rgba(59,130,246,0.25);
+  }
+  .market-date-badge.tomorrow {
+    background: rgba(168,85,247,0.1); color: #c084fc; border: 1px solid rgba(168,85,247,0.25);
+  }
 
   .forecast-row { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
   .forecast-chip {
@@ -110,13 +120,39 @@
     max-width: 700px; margin: 0 auto; background: #111827;
     border: 1px solid #1e293b; border-radius: 16px; padding: 28px;
   }
-  .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+  .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
   .modal-header h2 { font-size: 22px; color: #fff; }
   .modal-close {
     background: #1e293b; border: none; color: #94a3b8; font-size: 20px;
     width: 36px; height: 36px; border-radius: 8px; cursor: pointer;
   }
   .modal-close:hover { background: #334155; color: #fff; }
+
+  /* Modal date banner */
+  .modal-date-banner {
+    background: #172033; border: 1px solid #1e293b; border-radius: 10px;
+    padding: 12px 16px; margin-bottom: 20px;
+    display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;
+  }
+  .modal-date-banner .date-main {
+    font-size: 15px; font-weight: 600; color: #fff;
+  }
+  .modal-date-banner .date-relative {
+    font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 6px;
+  }
+  .modal-date-banner .date-relative.today {
+    background: rgba(34,197,94,0.15); color: #22c55e;
+  }
+  .modal-date-banner .date-relative.tomorrow {
+    background: rgba(168,85,247,0.15); color: #c084fc;
+  }
+  .modal-date-banner .date-relative.other {
+    background: rgba(59,130,246,0.15); color: #60a5fa;
+  }
+  .modal-note {
+    font-size: 11px; color: #475569; margin-bottom: 16px; line-height: 1.5;
+    padding: 8px 12px; background: #0a0e17; border-radius: 6px;
+  }
 
   .bracket-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
   .bracket-table th {
@@ -136,7 +172,6 @@
   }
   @keyframes spin { to { transform: rotate(360deg); } }
 
-  /* Disclaimer */
   /* How It Works */
   .how-it-works {
     background: #111827; border: 1px solid #1e293b; border-radius: 12px;
@@ -287,7 +322,6 @@
 </div>
 
 <script>
-// ─── Kalshi Market URL Map ───────────────────────────────
 const KALSHI_URLS = {
   nyc:  'https://kalshi.com/markets/kxhighny/highest-temperature-in-nyc',
   chi:  'https://kalshi.com/markets/kxhighchi/highest-temperature-in-chicago',
@@ -319,10 +353,25 @@ function getKalshiUrl(cityId) {
   return KALSHI_URLS[cityId] || 'https://kalshi.com/category/climate';
 }
 
+// Format a date string like "2026-04-06" into readable form + relative label
+function formatMarketDate(dateStr) {
+  if (!dateStr) return { display: '', relative: '', relativeClass: '' };
+  const d = new Date(dateStr + 'T12:00:00');
+  const today = new Date();
+  const todayStr = today.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+  const tomorrow = new Date(today.getTime() + 86400000);
+  const tomorrowStr = tomorrow.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+
+  const display = d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+
+  if (dateStr === todayStr) return { display, relative: "Today's Market", relativeClass: 'today' };
+  if (dateStr === tomorrowStr) return { display, relative: "Tomorrow's Market", relativeClass: 'tomorrow' };
+  return { display, relative: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }), relativeClass: 'other' };
+}
+
 // ─── Load Overview ───────────────────────────────────────
 async function loadOverview() {
   try {
-    // Show loading indicator on refresh
     const dot = document.getElementById('statusDot');
     const txt = document.getElementById('statusText');
     dot.className = 'status-dot loading';
@@ -333,12 +382,10 @@ async function loadOverview() {
     ALL_DATA = json.cities || [];
     lastFetchTime = new Date();
 
-    // Update status bar with LOCAL time (when we actually fetched)
     dot.className = 'status-dot live';
     txt.textContent = 'Live';
     document.getElementById('updateTime').textContent = 'Updated ' + lastFetchTime.toLocaleTimeString();
 
-    // Split into categories
     const divergences = ALL_DATA.filter(c => c.signal?.type === 'DIVERGENCE');
     const aligned = ALL_DATA.filter(c => c.signal?.type === 'ALIGNED');
     const noData = ALL_DATA.filter(c => !c.signal);
@@ -355,7 +402,7 @@ async function loadOverview() {
     }
     if (noData.length > 0) {
       html += `<div class="section-label">⏳ Awaiting Data (${noData.length})</div>`;
-      html += `<div class="section-note">These cities have forecast data but no matching Kalshi market was found. This usually means today's market has already closed and settled, or hasn't opened yet. Kalshi weather markets typically open the day before and close the following morning after the NWS publishes the Daily Climate Report.</div>`;
+      html += `<div class="section-note">These cities have forecast data but no matching Kalshi market was found. This usually means today's market has already closed and settled, or tomorrow's market hasn't opened yet. Kalshi weather markets typically open the day before and close the following morning after the NWS publishes the Daily Climate Report.</div>`;
       html += '<div class="city-grid">' + noData.map(renderCard).join('') + '</div>';
     }
 
@@ -377,6 +424,14 @@ async function loadOverview() {
 function renderCard(c) {
   const temp = c.currentTemp !== null ? Math.round(c.currentTemp) + '<span class="unit">°F</span>' : '--';
   const kalshiUrl = getKalshiUrl(c.id);
+
+  // Market date badge
+  const mDate = formatMarketDate(c.kalshi?.marketDate);
+  let dateBadge = '';
+  if (mDate.relative) {
+    const cls = mDate.relativeClass === 'tomorrow' ? 'market-date-badge tomorrow' : 'market-date-badge';
+    dateBadge = `<div class="${cls}">📅 ${mDate.relative} — ${mDate.display}</div>`;
+  }
 
   let badge = '<span class="signal-badge nodata">NO DATA YET</span>';
   let detail = '';
@@ -403,6 +458,7 @@ function renderCard(c) {
           <div class="current-desc">${c.currentDesc || 'Current'}</div>
         </div>
       </div>
+      ${dateBadge}
       <div class="forecast-row">
         ${(c.forecasts || []).map(f => `
           <div class="forecast-chip">
@@ -433,14 +489,29 @@ function openCity(id) {
 
   let html = '';
 
+  // Market date banner — big and prominent
+  const mDate = formatMarketDate(c.kalshi?.marketDate);
+  if (mDate.relative) {
+    html += `<div class="modal-date-banner">
+      <span class="date-main">📅 ${mDate.display}</span>
+      <span class="date-relative ${mDate.relativeClass}">${mDate.relative}</span>
+    </div>`;
+    if (mDate.relativeClass === 'tomorrow') {
+      html += `<div class="modal-note">⚠️ This is <strong style="color:#c084fc">tomorrow's market</strong>, not today's. Today's market may have already closed or is near closing. WeatherEdge shows the next tradeable market so you can plan ahead.</div>`;
+    }
+  }
+
+  // Current temp
   if (c.currentTemp !== null) {
     html += `<div class="consensus-row">
-      <span class="consensus-label">Current Temp — ${c.currentDesc || 'NWS Station'}</span>
+      <span class="consensus-label">Current Temp Right Now — ${c.currentDesc || 'NWS Station'}</span>
       <span class="consensus-val">${c.currentTemp}°F</span>
     </div>`;
   }
 
-  html += '<div class="section-label" style="margin-top:0">Forecasts for Today</div>';
+  // Forecasts
+  const forecastDateLabel = mDate.relativeClass === 'tomorrow' ? 'Tomorrow' : 'Today';
+  html += `<div class="section-label" style="margin-top:0">Forecasts for ${forecastDateLabel} (${mDate.display || 'N/A'})</div>`;
   html += '<div class="forecast-row" style="margin-bottom:20px">';
   (c.forecasts || []).forEach(f => {
     html += `<div class="forecast-chip">
@@ -456,6 +527,7 @@ function openCity(id) {
   }
   html += '</div>';
 
+  // Kalshi brackets
   if (c.kalshi?.markets?.length) {
     html += `<div class="section-label">Kalshi Market — ${c.kalshi.title || c.kalshi.subtitle || 'High Temp'}</div>`;
     html += '<table class="bracket-table"><thead><tr><th>Bracket</th><th>Price</th><th>Volume</th></tr></thead><tbody>';
@@ -472,7 +544,7 @@ function openCity(id) {
     html += '</tbody></table>';
     html += `<a href="${kalshiUrl}" target="_blank" class="kalshi-link">Trade This Market on Kalshi →</a>`;
   } else {
-    html += `<p style="color:#64748b;margin-top:16px">No active Kalshi market found for today. The market may have already closed and settled, or hasn't opened yet.</p>`;
+    html += `<p style="color:#64748b;margin-top:16px">No active Kalshi market found. The market may have already closed and settled, or tomorrow's market hasn't opened yet.</p>`;
     html += `<a href="${kalshiUrl}" target="_blank" class="kalshi-link" style="background:#334155">View on Kalshi →</a>`;
   }
 
@@ -485,7 +557,7 @@ document.getElementById('modal').addEventListener('click', e => {
 });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
 
-// ─── Init + Auto-Refresh Every 2 Minutes ─────────────────
+// ─── Init ────────────────────────────────────────────────
 function toggleHow() {
   const c = document.getElementById('howContent');
   const btn = document.querySelector('.how-toggle');

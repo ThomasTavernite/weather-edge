@@ -98,7 +98,11 @@ async function getKalshi(seriesTicker) {
     volume: m.volume_fp || m.volume || 0
   })).filter(m => m.subtitle);
 
-  return { eventTicker: ev.event_ticker, title: ev.title || '', subtitle: ev.sub_title || '', markets };
+  // Extract the market date from the event title or close_time
+  const closeTime = ev.markets?.[0]?.close_time || '';
+  const marketDate = closeTime ? closeTime.slice(0, 10) : '';
+
+  return { eventTicker: ev.event_ticker, title: ev.title || '', subtitle: ev.sub_title || '', markets, marketDate };
 }
 
 // ─── Build Signal ────────────────────────────────────────
