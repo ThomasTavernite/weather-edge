@@ -6,247 +6,104 @@
 <title>WeatherEdge — Kalshi Weather Trading Signals</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    background: #0a0e17;
-    color: #e1e4ea;
-    min-height: 100vh;
-  }
-
-  .header {
-    background: linear-gradient(135deg, #0f1724 0%, #141e30 100%);
-    border-bottom: 1px solid #1e293b;
-    padding: 20px 24px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 12px;
-  }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0a0e17; color: #e1e4ea; min-height: 100vh; }
+  .header { background: linear-gradient(135deg, #0f1724 0%, #141e30 100%); border-bottom: 1px solid #1e293b; padding: 20px 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
   .logo h1 { font-size: 22px; font-weight: 700; color: #fff; }
   .logo h1 span { color: #3b82f6; }
   .logo-sub { font-size: 12px; color: #64748b; letter-spacing: 0.5px; }
   .header-right { display: flex; align-items: center; gap: 12px; font-size: 13px; color: #64748b; }
   .live-clock { font-variant-numeric: tabular-nums; color: #94a3b8; font-size: 12px; }
   .refresh-countdown { color: #475569; font-size: 11px; }
-  .status-dot {
-    width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 4px;
-  }
+  .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 4px; }
   .status-dot.live { background: #22c55e; box-shadow: 0 0 6px #22c55e; }
   .status-dot.loading { background: #f59e0b; animation: pulse 1.5s infinite; }
-  @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
-
+  @keyframes pulse { 0%,100%{opacity:1}50%{opacity:0.4} }
   .container { max-width: 1200px; margin: 0 auto; padding: 24px; }
-  .section-label {
-    font-size: 13px; color: #64748b; text-transform: uppercase;
-    letter-spacing: 1px; margin-bottom: 16px; font-weight: 600;
-  }
-  .section-note {
-    font-size: 12px; color: #475569; margin-top: -10px; margin-bottom: 16px; line-height: 1.5;
-  }
-  .city-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
-    gap: 16px; margin-bottom: 32px;
-  }
-
-  .city-card {
-    background: #111827; border: 1px solid #1e293b; border-radius: 12px;
-    padding: 20px; cursor: pointer; transition: all 0.2s;
-  }
-  .city-card:hover {
-    border-color: #3b82f6; transform: translateY(-1px);
-    box-shadow: 0 4px 20px rgba(59,130,246,0.1);
-  }
-  .card-top {
-    display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px;
-  }
+  .section-label { font-size: 13px; color: #64748b; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px; font-weight: 600; }
+  .section-note { font-size: 12px; color: #475569; margin-top: -10px; margin-bottom: 16px; line-height: 1.5; }
+  .city-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 16px; margin-bottom: 32px; }
+  .city-card { background: #111827; border: 1px solid #1e293b; border-radius: 12px; padding: 20px; cursor: pointer; transition: all 0.2s; }
+  .city-card:hover { border-color: #3b82f6; transform: translateY(-1px); box-shadow: 0 4px 20px rgba(59,130,246,0.1); }
+  .card-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; }
   .city-name { font-size: 18px; font-weight: 600; color: #fff; }
   .current-temp { font-size: 28px; font-weight: 700; color: #fff; line-height: 1; }
   .current-temp .unit { font-size: 14px; color: #64748b; font-weight: 400; }
   .current-desc { font-size: 12px; color: #64748b; margin-top: 2px; text-align: right; }
-
-  /* Market date badge on cards */
-  .market-date-badge {
-    display: inline-block; padding: 4px 10px; border-radius: 6px; font-size: 11px;
-    font-weight: 600; margin-bottom: 10px;
-    background: rgba(59,130,246,0.1); color: #60a5fa; border: 1px solid rgba(59,130,246,0.25);
-  }
-  .market-date-badge.tomorrow {
-    background: rgba(168,85,247,0.1); color: #c084fc; border: 1px solid rgba(168,85,247,0.25);
-  }
-
+  .market-date-badge { display: inline-block; padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; margin-bottom: 10px; background: rgba(59,130,246,0.1); color: #60a5fa; border: 1px solid rgba(59,130,246,0.25); }
+  .market-date-badge.tomorrow { background: rgba(168,85,247,0.1); color: #c084fc; border: 1px solid rgba(168,85,247,0.25); }
   .forecast-row { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
-  .forecast-chip {
-    background: #1e293b; border-radius: 6px; padding: 6px 10px;
-    font-size: 12px; display: flex; flex-direction: column; align-items: center; min-width: 80px;
-  }
+  .forecast-chip { background: #1e293b; border-radius: 6px; padding: 6px 10px; font-size: 12px; display: flex; flex-direction: column; align-items: center; min-width: 80px; }
   .forecast-chip .src { color: #64748b; font-size: 10px; margin-bottom: 2px; }
   .forecast-chip .val { color: #e1e4ea; font-weight: 600; }
   .forecast-chip.consensus { background: #172033; border: 1px solid #3b82f6; }
   .forecast-chip.consensus .src { color: #3b82f6; }
   .forecast-chip.consensus .val { color: #3b82f6; }
-
-  .consensus-row {
-    background: #172033; border-radius: 8px; padding: 10px 14px;
-    display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;
-  }
-  .consensus-label { font-size: 12px; color: #94a3b8; }
-  .consensus-val { font-size: 18px; font-weight: 700; color: #3b82f6; }
-
-  .signal-badge {
-    display: inline-block; padding: 4px 10px; border-radius: 6px;
-    font-size: 12px; font-weight: 600; letter-spacing: 0.5px; margin-top: 6px;
-  }
+  .signal-badge { display: inline-block; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; letter-spacing: 0.5px; margin-top: 6px; }
   .signal-badge.aligned { background: rgba(34,197,94,0.15); color: #22c55e; border: 1px solid rgba(34,197,94,0.3); }
   .signal-badge.divergence { background: rgba(245,158,11,0.15); color: #f59e0b; border: 1px solid rgba(245,158,11,0.3); }
   .signal-badge.nodata { background: rgba(100,116,139,0.15); color: #64748b; border: 1px solid rgba(100,116,139,0.3); }
-
   .signal-detail { font-size: 12px; color: #94a3b8; margin-top: 8px; line-height: 1.5; }
   .signal-detail strong { color: #e1e4ea; }
-
-  .kalshi-link {
-    display: inline-block; margin-top: 14px; padding: 8px 16px;
-    background: #3b82f6; color: #fff; text-decoration: none;
-    border-radius: 8px; font-size: 13px; font-weight: 600; transition: background 0.2s;
-  }
+  .kalshi-link { display: inline-block; margin-top: 14px; padding: 8px 16px; background: #3b82f6; color: #fff; text-decoration: none; border-radius: 8px; font-size: 13px; font-weight: 600; transition: background 0.2s; }
   .kalshi-link:hover { background: #2563eb; }
-
-  /* Modal */
-  .modal-overlay {
-    display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7);
-    z-index: 100; overflow-y: auto; padding: 40px 20px;
-  }
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 100; overflow-y: auto; padding: 40px 20px; }
   .modal-overlay.active { display: block; }
-  .modal {
-    max-width: 700px; margin: 0 auto; background: #111827;
-    border: 1px solid #1e293b; border-radius: 16px; padding: 28px;
-  }
+  .modal { max-width: 700px; margin: 0 auto; background: #111827; border: 1px solid #1e293b; border-radius: 16px; padding: 28px; }
   .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
   .modal-header h2 { font-size: 22px; color: #fff; }
-  .modal-close {
-    background: #1e293b; border: none; color: #94a3b8; font-size: 20px;
-    width: 36px; height: 36px; border-radius: 8px; cursor: pointer;
-  }
+  .modal-close { background: #1e293b; border: none; color: #94a3b8; font-size: 20px; width: 36px; height: 36px; border-radius: 8px; cursor: pointer; }
   .modal-close:hover { background: #334155; color: #fff; }
-
-  /* Modal date banner */
-  .modal-date-banner {
-    background: #172033; border: 1px solid #1e293b; border-radius: 10px;
-    padding: 12px 16px; margin-bottom: 20px;
-    display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;
-  }
-  .modal-date-banner .date-main {
-    font-size: 15px; font-weight: 600; color: #fff;
-  }
-  .modal-date-banner .date-relative {
-    font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 6px;
-  }
-  .modal-date-banner .date-relative.today {
-    background: rgba(34,197,94,0.15); color: #22c55e;
-  }
-  .modal-date-banner .date-relative.tomorrow {
-    background: rgba(168,85,247,0.15); color: #c084fc;
-  }
-  .modal-date-banner .date-relative.other {
-    background: rgba(59,130,246,0.15); color: #60a5fa;
-  }
-  .modal-note {
-    font-size: 11px; color: #475569; margin-bottom: 16px; line-height: 1.5;
-    padding: 8px 12px; background: #0a0e17; border-radius: 6px;
-  }
-
+  .modal-date-banner { background: #172033; border: 1px solid #1e293b; border-radius: 10px; padding: 12px 16px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
+  .modal-date-banner .date-main { font-size: 15px; font-weight: 600; color: #fff; }
+  .modal-date-banner .date-relative { font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 6px; }
+  .modal-date-banner .date-relative.today { background: rgba(34,197,94,0.15); color: #22c55e; }
+  .modal-date-banner .date-relative.tomorrow { background: rgba(168,85,247,0.15); color: #c084fc; }
+  .modal-note { font-size: 11px; color: #475569; margin-bottom: 16px; line-height: 1.5; padding: 8px 12px; background: #0a0e17; border-radius: 6px; }
+  .consensus-row { background: #172033; border-radius: 8px; padding: 10px 14px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+  .consensus-label { font-size: 12px; color: #94a3b8; }
+  .consensus-val { font-size: 18px; font-weight: 700; color: #3b82f6; }
   .bracket-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-  .bracket-table th {
-    text-align: left; padding: 10px 12px; font-size: 12px; color: #64748b;
-    text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #1e293b;
-  }
+  .bracket-table th { text-align: left; padding: 10px 12px; font-size: 12px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #1e293b; }
   .bracket-table td { padding: 10px 12px; font-size: 14px; border-bottom: 1px solid #1e293b; }
   .bracket-table tr.consensus-match { background: rgba(59,130,246,0.1); }
   .bracket-table tr.consensus-match td:first-child { border-left: 3px solid #3b82f6; }
   .price-cell { font-weight: 600; color: #fff; }
-
   .loading-container { text-align: center; padding: 80px 20px; color: #64748b; }
   .loading-container h2 { color: #94a3b8; margin-bottom: 12px; }
-  .spinner {
-    width: 40px; height: 40px; border: 3px solid #1e293b; border-top-color: #3b82f6;
-    border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 20px;
-  }
+  .spinner { width: 40px; height: 40px; border: 3px solid #1e293b; border-top-color: #3b82f6; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 20px; }
   @keyframes spin { to { transform: rotate(360deg); } }
-
-  /* How It Works */
-  .how-it-works {
-    background: #111827; border: 1px solid #1e293b; border-radius: 12px;
-    padding: 24px; margin-bottom: 32px;
-  }
-  .how-it-works h2 { font-size: 16px; color: #fff; margin-bottom: 16px; }
-  .how-toggle {
-    background: #1e293b; border: none; color: #3b82f6; font-size: 13px;
-    font-weight: 600; padding: 8px 16px; border-radius: 8px; cursor: pointer;
-    transition: background 0.2s;
-  }
+  .how-it-works { background: #111827; border: 1px solid #1e293b; border-radius: 12px; padding: 24px; margin-bottom: 32px; }
+  .how-it-works h2 { font-size: 16px; color: #fff; }
+  .how-toggle { background: #1e293b; border: none; color: #3b82f6; font-size: 13px; font-weight: 600; padding: 8px 16px; border-radius: 8px; cursor: pointer; }
   .how-toggle:hover { background: #334155; }
   .how-content { display: none; margin-top: 16px; }
   .how-content.open { display: block; }
-  .how-step {
-    display: flex; gap: 14px; margin-bottom: 18px; align-items: flex-start;
-  }
-  .step-num {
-    background: #3b82f6; color: #fff; font-weight: 700; font-size: 13px;
-    width: 28px; height: 28px; border-radius: 50%; display: flex;
-    align-items: center; justify-content: center; flex-shrink: 0;
-  }
+  .how-step { display: flex; gap: 14px; margin-bottom: 18px; align-items: flex-start; }
+  .step-num { background: #3b82f6; color: #fff; font-weight: 700; font-size: 13px; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
   .step-text h3 { font-size: 14px; color: #e1e4ea; margin-bottom: 4px; }
   .step-text p { font-size: 13px; color: #94a3b8; line-height: 1.6; }
-  .signal-example {
-    background: #0a0e17; border: 1px solid #1e293b; border-radius: 8px;
-    padding: 14px 16px; margin-top: 12px; font-size: 13px; color: #94a3b8; line-height: 1.7;
-  }
+  .signal-example { background: #0a0e17; border: 1px solid #1e293b; border-radius: 8px; padding: 14px 16px; margin-top: 12px; font-size: 13px; color: #94a3b8; line-height: 1.7; }
   .signal-example strong { color: #f59e0b; }
   .signal-example .green { color: #22c55e; }
-
-  /* Trust & Methodology */
-  .trust-section {
-    background: #111827; border: 1px solid #1e293b; border-radius: 12px;
-    padding: 24px; margin-top: 32px;
-  }
+  .trust-section { background: #111827; border: 1px solid #1e293b; border-radius: 12px; padding: 24px; margin-top: 32px; }
   .trust-section h3 { font-size: 15px; color: #fff; margin-bottom: 16px; }
-  .trust-grid {
-    display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-    gap: 12px; margin-bottom: 20px;
-  }
-  .trust-card {
-    background: #0a0e17; border: 1px solid #1e293b; border-radius: 10px; padding: 16px;
-  }
+  .trust-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+  .trust-card { background: #0a0e17; border: 1px solid #1e293b; border-radius: 10px; padding: 16px; }
   .trust-card .trust-icon { font-size: 20px; margin-bottom: 8px; }
   .trust-card .trust-title { font-size: 13px; font-weight: 600; color: #e1e4ea; margin-bottom: 4px; }
   .trust-card .trust-desc { font-size: 12px; color: #64748b; line-height: 1.5; }
   .trust-card a { color: #3b82f6; text-decoration: none; font-size: 11px; }
   .trust-card a:hover { text-decoration: underline; }
-
-  .disclaimer {
-    background: #111827; border: 1px solid #1e293b; border-radius: 12px;
-    padding: 20px 24px; margin-top: 32px;
-  }
+  .disclaimer { background: #111827; border: 1px solid #1e293b; border-radius: 12px; padding: 20px 24px; margin-top: 32px; }
   .disclaimer h3 { font-size: 14px; color: #94a3b8; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
   .disclaimer p { font-size: 12px; color: #475569; line-height: 1.7; margin-bottom: 8px; }
-
-  .footer {
-    text-align: center; padding: 32px 24px; font-size: 12px; color: #475569;
-    border-top: 1px solid #1e293b; margin-top: 40px;
-  }
+  .footer { text-align: center; padding: 32px 24px; font-size: 12px; color: #475569; border-top: 1px solid #1e293b; margin-top: 40px; }
   .footer a { color: #3b82f6; text-decoration: none; }
   .footer a:hover { text-decoration: underline; }
-
-  @media (max-width: 500px) {
-    .city-grid { grid-template-columns: 1fr; }
-    .header { padding: 16px; }
-    .container { padding: 16px; }
-  }
+  @media (max-width: 500px) { .city-grid { grid-template-columns: 1fr; } .header { padding: 16px; } .container { padding: 16px; } }
 </style>
 </head>
 <body>
-
 <div class="header">
   <div class="logo">
     <h1>Weather<span>Edge</span></h1>
@@ -259,394 +116,230 @@
     </div>
   </div>
 </div>
-
 <div class="container">
-  <!-- How It Works -->
   <div class="how-it-works">
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
       <h2>📖 How to Read This Dashboard</h2>
-      <button class="how-toggle" onclick="toggleHow()">Show Guide ▾</button>
+      <button class="how-toggle" onclick="document.getElementById('howContent').classList.toggle('open');this.textContent=document.getElementById('howContent').classList.contains('open')?'Hide Guide ▴':'Show Guide ▾'">Show Guide ▾</button>
     </div>
     <div class="how-content" id="howContent">
-      <div class="how-step">
-        <div class="step-num">1</div>
-        <div class="step-text">
-          <h3>We pull forecasts from multiple sources</h3>
-          <p>Every few minutes, WeatherEdge checks the National Weather Service (NWS) and Open-Meteo for their high/low temperature forecasts for each city. These are the same sources professional weather traders use. We average them into a single <strong style="color:#3b82f6">Consensus</strong> forecast.</p>
-        </div>
-      </div>
-      <div class="how-step">
-        <div class="step-num">2</div>
-        <div class="step-text">
-          <h3>We compare forecasts against Kalshi's market prices</h3>
-          <p>Kalshi lists temperature markets with brackets like "72° to 73°" or "74° to 75°." Each bracket has a price — that price represents what traders collectively think the probability is. A bracket priced at 29¢ means traders think there's roughly a 29% chance the actual high falls in that range. If you buy "Yes" at 29¢ and it hits, you get $1.00 back — a profit of 71¢ per contract.</p>
-        </div>
-      </div>
-      <div class="how-step">
-        <div class="step-num">3</div>
-        <div class="step-text">
-          <h3>The "← Forecast" tag shows where forecasts point</h3>
-          <p>When you click a city and see the bracket table, the row tagged <strong style="color:#3b82f6">← Forecast</strong> is the bracket the consensus temperature falls into. This is what the weather models think will actually happen.</p>
-        </div>
-      </div>
-      <div class="how-step">
-        <div class="step-num">4</div>
-        <div class="step-text">
-          <h3>Signals tell you if the market agrees or disagrees</h3>
-          <p>This is the key part:</p>
-          <div class="signal-example">
-            <span class="green">✓ ALIGNED</span> — The forecast consensus and the market's most-expensive bracket are the same. Traders and weather models agree. There's likely no edge here.<br><br>
-            <strong>⚡ DIVERGENCE</strong> — The forecast consensus points to a different bracket than what the market favors. This is where a potential opportunity exists. Forecasters say one thing, traders are pricing another. Someone is wrong — and weather forecasts, especially within 24 hours, tend to be quite accurate.
-          </div>
-        </div>
-      </div>
-      <div class="how-step">
-        <div class="step-num">5</div>
-        <div class="step-text">
-          <h3>Important: Divergence ≠ guaranteed profit</h3>
-          <p>Weather models can be wrong. Local conditions like cloud cover, marine layers, or sudden wind shifts can throw off even the best forecasts. Kalshi markets settle based on the <strong style="color:#e1e4ea">official NWS Daily Climate Report</strong> — not the forecast. A divergence signal means "this is worth looking into," not "this is free money." Always do your own research and never trade more than you can afford to lose.</p>
-        </div>
-      </div>
+      <div class="how-step"><div class="step-num">1</div><div class="step-text"><h3>We pull forecasts from Open-Meteo</h3><p>Every few minutes, WeatherEdge checks Open-Meteo — an open-source service aggregating multiple global weather models (GFS, ECMWF, and more) — for high/low temperature forecasts for each city.</p></div></div>
+      <div class="how-step"><div class="step-num">2</div><div class="step-text"><h3>We compare forecasts against Kalshi's market prices</h3><p>Kalshi lists temperature markets with brackets like "72° to 73°." Each bracket has a price representing what traders think the probability is. A bracket at 29¢ means ~29% chance. Buy "Yes" at 29¢ and if it hits, you get $1.00 back — 71¢ profit per contract.</p></div></div>
+      <div class="how-step"><div class="step-num">3</div><div class="step-text"><h3>The "← Forecast" tag shows where forecasts point</h3><p>In the bracket table, the row tagged <strong style="color:#3b82f6">← Forecast</strong> is the bracket the forecast temperature falls into.</p></div></div>
+      <div class="how-step"><div class="step-num">4</div><div class="step-text"><h3>Signals tell you if the market agrees or disagrees</h3><div class="signal-example"><span class="green">✓ ALIGNED</span> — Forecast and the market's top bracket match. No edge.<br><br><strong>⚡ DIVERGENCE</strong> — Forecast points to a different bracket than the market favorite. Potential opportunity — someone is wrong.</div></div></div>
+      <div class="how-step"><div class="step-num">5</div><div class="step-text"><h3>Divergence ≠ guaranteed profit</h3><p>Weather models can be wrong. Kalshi settles on the <strong style="color:#e1e4ea">official NWS Daily Climate Report</strong> — not forecasts. A divergence means "worth investigating," not "free money." Never trade more than you can afford to lose.</p></div></div>
     </div>
   </div>
-
   <div id="mainContent">
     <div class="loading-container">
       <div class="spinner"></div>
       <h2>Fetching live data...</h2>
-      <p>Pulling forecasts from NWS & Open-Meteo, market prices from Kalshi</p>
-      <p style="margin-top:8px;font-size:12px;color:#475569">First load takes ~15 seconds (13 cities × 3 sources)</p>
+      <p>Pulling forecasts from Open-Meteo, market prices from Kalshi</p>
     </div>
   </div>
-
-  <!-- Trust & Methodology -->
   <div class="trust-section">
     <h3>🔍 Why You Can Trust This Data</h3>
     <div class="trust-grid">
-      <div class="trust-card">
-        <div class="trust-icon">🏛️</div>
-        <div class="trust-title">Official Settlement Source</div>
-        <div class="trust-desc">Kalshi markets settle based on the NWS Daily Climate Report — the same source our forecasts reference. We're comparing apples to apples.</div>
-        <a href="https://help.kalshi.com/markets/popular-markets/weather-markets" target="_blank">View Kalshi's rules →</a>
-      </div>
-      <div class="trust-card">
-        <div class="trust-icon">📡</div>
-        <div class="trust-title">Open-Meteo Forecasts</div>
-        <div class="trust-desc">Forecasts come from Open-Meteo, an open-source service that aggregates multiple global weather models including GFS and ECMWF for maximum accuracy.</div>
-        <a href="https://open-meteo.com" target="_blank">Open-Meteo →</a>
-      </div>
-      <div class="trust-card">
-        <div class="trust-icon">⚡</div>
-        <div class="trust-title">Real-Time Kalshi Prices</div>
-        <div class="trust-desc">Market prices come directly from Kalshi's public API — the same data that powers their own website. Nothing is delayed or estimated.</div>
-        <a href="https://docs.kalshi.com" target="_blank">Kalshi API docs →</a>
-      </div>
-      <div class="trust-card">
-        <div class="trust-icon">🔓</div>
-        <div class="trust-title">Fully Transparent</div>
-        <div class="trust-desc">Every data source is public and verifiable. You can check any forecast or price we display against the original source yourself at any time.</div>
-      </div>
+      <div class="trust-card"><div class="trust-icon">🏛️</div><div class="trust-title">Official Settlement Source</div><div class="trust-desc">Kalshi markets settle based on the NWS Daily Climate Report — the same source our forecasts reference.</div><a href="https://help.kalshi.com/markets/popular-markets/weather-markets" target="_blank">View Kalshi's rules →</a></div>
+      <div class="trust-card"><div class="trust-icon">📡</div><div class="trust-title">Open-Meteo Forecasts</div><div class="trust-desc">Forecasts come from Open-Meteo, an open-source service aggregating multiple global weather models including GFS and ECMWF.</div><a href="https://open-meteo.com" target="_blank">Open-Meteo →</a></div>
+      <div class="trust-card"><div class="trust-icon">⚡</div><div class="trust-title">Real-Time Kalshi Prices</div><div class="trust-desc">Market prices come directly from Kalshi's public API — the same data powering their own website.</div><a href="https://docs.kalshi.com" target="_blank">Kalshi API docs →</a></div>
+      <div class="trust-card"><div class="trust-icon">🔓</div><div class="trust-title">Fully Transparent</div><div class="trust-desc">Every data source is public and verifiable. You can check any forecast or price against the original source yourself.</div></div>
     </div>
-
-
   </div>
-
-  <!-- Disclaimer -->
   <div class="disclaimer">
     <h3>Disclaimer</h3>
-    <p><strong style="color:#94a3b8">WeatherEdge is not financial advice.</strong> The information provided on this site is for informational and educational purposes only. Nothing on this site constitutes a recommendation, solicitation, or offer to buy or sell any event contracts, securities, or financial instruments.</p>
-    <p>Trading on Kalshi and other prediction market platforms involves substantial risk of loss and is not suitable for all individuals. You could lose some or all of your invested capital. Past performance of any signal, forecast, or consensus data shown on this site is not indicative of future results.</p>
-    <p>WeatherEdge is not affiliated with, endorsed by, or sponsored by Kalshi, Inc. or the National Weather Service. Weather forecasts are inherently uncertain and should not be relied upon as the sole basis for any trading decision.</p>
-    <p>This platform is not a registered broker-dealer, investment adviser, or futures commission merchant. No content on this site is insured by the FDIC or any government agency. <strong style="color:#94a3b8">Trade at your own risk.</strong></p>
+    <p><strong style="color:#94a3b8">WeatherEdge is not financial advice.</strong> The information provided is for informational and educational purposes only. Nothing constitutes a recommendation or offer to buy or sell any event contracts or financial instruments.</p>
+    <p>Trading on Kalshi involves substantial risk of loss. You could lose some or all of your capital. Past performance is not indicative of future results.</p>
+    <p>WeatherEdge is not affiliated with Kalshi, Inc. or the National Weather Service. Not insured by the FDIC or any government agency. <strong style="color:#94a3b8">Trade at your own risk.</strong></p>
   </div>
 </div>
-
 <div class="modal-overlay" id="modal">
   <div class="modal">
-    <div class="modal-header">
-      <h2 id="modalTitle">City</h2>
-      <button class="modal-close" onclick="closeModal()">✕</button>
-    </div>
+    <div class="modal-header"><h2 id="modalTitle">City</h2><button class="modal-close" onclick="closeModal()">✕</button></div>
     <div id="modalBody"></div>
   </div>
 </div>
-
 <div class="footer">
   <p>WeatherEdge is not financial advice. Markets settle via <a href="https://help.kalshi.com/markets/popular-markets/weather-markets" target="_blank">NWS Daily Climate Reports</a>.</p>
-  <p style="margin-top:8px;">Trade on <a href="https://kalshi.com/category/climate" target="_blank">Kalshi</a> — CFTC regulated prediction markets.</p>
+  <p style="margin-top:8px">Trade on <a href="https://kalshi.com/category/climate" target="_blank">Kalshi</a> — CFTC regulated prediction markets.</p>
 </div>
-
 <script>
-const KALSHI_URLS = {
-  nyc:  'https://kalshi.com/markets/kxhighny/highest-temperature-in-nyc',
-  chi:  'https://kalshi.com/markets/kxhighchi/highest-temperature-in-chicago',
-  mia:  'https://kalshi.com/markets/kxhighmia/highest-temperature-in-miami',
-  lax:  'https://kalshi.com/markets/kxhighlax/highest-temperature-in-los-angeles',
-  sfo:  'https://kalshi.com/markets/kxhightsfo/san-francisco-high-temperature-daily',
-  phi:  'https://kalshi.com/markets/kxhighphil/highest-temperature-in-philadelphia',
-  aus:  'https://kalshi.com/markets/kxhighaus/highest-temperature-in-austin',
-  den:  'https://kalshi.com/markets/kxhighden/highest-temperature-in-denver',
-  sea:  'https://kalshi.com/markets/kxhightsea/seattle-maximum-temperature-daily',
-  lv:   'https://kalshi.com/markets/kxhightlv/las-vegas-max-daily-temperature',
-  bos:  'https://kalshi.com/markets/kxhightbos/boston-maximum-daily-temperature',
-  nola: 'https://kalshi.com/markets/kxhightnola/new-orleans-max-temp-daily',
-  dc:   'https://kalshi.com/markets/kxhightdc/washington-dc-daily-max-temp',
+var KALSHI_URLS = {
+  nyc:'https://kalshi.com/markets/kxhighny/highest-temperature-in-nyc',
+  chi:'https://kalshi.com/markets/kxhighchi/highest-temperature-in-chicago',
+  mia:'https://kalshi.com/markets/kxhighmia/highest-temperature-in-miami',
+  lax:'https://kalshi.com/markets/kxhighlax/highest-temperature-in-los-angeles',
+  sfo:'https://kalshi.com/markets/kxhightsfo/san-francisco-high-temperature-daily',
+  phi:'https://kalshi.com/markets/kxhighphil/highest-temperature-in-philadelphia',
+  aus:'https://kalshi.com/markets/kxhighaus/highest-temperature-in-austin',
+  den:'https://kalshi.com/markets/kxhighden/highest-temperature-in-denver',
+  sea:'https://kalshi.com/markets/kxhightsea/seattle-maximum-temperature-daily',
+  lv:'https://kalshi.com/markets/kxhightlv/las-vegas-max-daily-temperature',
+  bos:'https://kalshi.com/markets/kxhightbos/boston-maximum-daily-temperature',
+  nola:'https://kalshi.com/markets/kxhightnola/new-orleans-max-temp-daily',
+  dc:'https://kalshi.com/markets/kxhightdc/washington-dc-daily-max-temp'
 };
-
-let ALL_DATA = [];
-let lastFetchTime = null;
-let nextRefreshIn = 120; // seconds
+var ALL_DATA = [];
+var nextRefreshIn = 120;
 
 function formatPrice(p) {
-  if (p === null || p === undefined) return '--';
-  const n = parseFloat(p);
+  if (p == null) return '--';
+  var n = parseFloat(p);
   if (isNaN(n)) return '--';
   if (n < 1) return Math.round(n * 100) + '¢';
   return '$' + n.toFixed(2);
 }
 
-function getKalshiUrl(cityId) {
-  return KALSHI_URLS[cityId] || 'https://kalshi.com/category/climate';
-}
-
-// Format a date string like "2026-04-06" into readable form + relative label
 function formatMarketDate(dateStr) {
   if (!dateStr) return { display: '', relative: '', relativeClass: '' };
-  const d = new Date(dateStr + 'T12:00:00');
-  const today = new Date();
-  const todayStr = today.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
-  const tomorrow = new Date(today.getTime() + 86400000);
-  const tomorrowStr = tomorrow.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
-
-  const display = d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
-
-  if (dateStr === todayStr) return { display, relative: "Today's Market", relativeClass: 'today' };
-  if (dateStr === tomorrowStr) return { display, relative: "Tomorrow's Market", relativeClass: 'tomorrow' };
-  return { display, relative: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }), relativeClass: 'other' };
+  var d = new Date(dateStr + 'T12:00:00');
+  var now = new Date();
+  var todayStr = now.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+  var tom = new Date(now.getTime() + 86400000);
+  var tomorrowStr = tom.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+  var display = d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+  if (dateStr === todayStr) return { display: display, relative: "Today's Market", relativeClass: 'today' };
+  if (dateStr === tomorrowStr) return { display: display, relative: "Tomorrow's Market", relativeClass: 'tomorrow' };
+  return { display: display, relative: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }), relativeClass: 'other' };
 }
 
-// ─── Load Overview ───────────────────────────────────────
-async function loadOverview() {
-  try {
-    const dot = document.getElementById('statusDot');
-    const txt = document.getElementById('statusText');
-    dot.className = 'status-dot loading';
-    txt.textContent = 'Refreshing...';
+function loadOverview() {
+  var dot = document.getElementById('statusDot');
+  var txt = document.getElementById('statusText');
+  dot.className = 'status-dot loading';
+  txt.textContent = 'Refreshing...';
 
-    const res = await fetch('/api/overview');
-    const json = await res.json();
-    ALL_DATA = json.cities || [];
-    lastFetchTime = new Date();
+  fetch('/api/overview')
+    .then(function(res) { return res.json(); })
+    .then(function(json) {
+      ALL_DATA = json.cities || [];
+      dot.className = 'status-dot live';
+      txt.textContent = 'Live';
+      nextRefreshIn = 120;
 
-    dot.className = 'status-dot live';
-    txt.textContent = 'Live';
-    nextRefreshIn = 120;
+      var divergences = ALL_DATA.filter(function(c) { return c.signal && c.signal.type === 'DIVERGENCE'; });
+      var aligned = ALL_DATA.filter(function(c) { return c.signal && c.signal.type === 'ALIGNED'; });
+      var noData = ALL_DATA.filter(function(c) { return !c.signal; });
+      var html = '';
 
-    // Update track record stats
-    const activeMarkets = ALL_DATA.filter(c => c.kalshi?.markets?.length > 0).length;
-    const divergences = ALL_DATA.filter(c => c.signal?.type === 'DIVERGENCE');
-    document.getElementById('statCities').textContent = ALL_DATA.length;
-    document.getElementById('statActive').textContent = activeMarkets;
-    document.getElementById('statDivergences').textContent = divergences.length;
-
-    const divergences = ALL_DATA.filter(c => c.signal?.type === 'DIVERGENCE');
-    const aligned = ALL_DATA.filter(c => c.signal?.type === 'ALIGNED');
-    const noData = ALL_DATA.filter(c => !c.signal);
-
-    let html = '';
-
-    if (divergences.length > 0) {
-      html += `<div class="section-label">⚡ Potential Opportunities (${divergences.length})</div>`;
-      html += '<div class="city-grid">' + divergences.map(renderCard).join('') + '</div>';
-    }
-    if (aligned.length > 0) {
-      html += `<div class="section-label">✓ Market Aligned with Forecasts (${aligned.length})</div>`;
-      html += '<div class="city-grid">' + aligned.map(renderCard).join('') + '</div>';
-    }
-    if (noData.length > 0) {
-      html += `<div class="section-label">⏳ Awaiting Data (${noData.length})</div>`;
-      html += `<div class="section-note">These cities have forecast data but no matching Kalshi market was found. This usually means today's market has already closed and settled, or tomorrow's market hasn't opened yet. Kalshi weather markets typically open the day before and close the following morning after the NWS publishes the Daily Climate Report.</div>`;
-      html += '<div class="city-grid">' + noData.map(renderCard).join('') + '</div>';
-    }
-
-    if (!html) html = '<div class="loading-container"><h2>No active markets right now</h2><p>Kalshi weather markets typically open daily. Check back tomorrow morning.</p></div>';
-
-    document.getElementById('mainContent').innerHTML = html;
-
-  } catch (e) {
-    console.error('Load failed:', e);
-    document.getElementById('mainContent').innerHTML = `
-      <div class="loading-container">
-        <h2>Loading data...</h2>
-        <p>Function is warming up. Retrying in 10 seconds...</p>
-      </div>`;
-    setTimeout(loadOverview, 10000);
-  }
+      if (divergences.length > 0) {
+        html += '<div class="section-label">⚡ Potential Opportunities (' + divergences.length + ')</div>';
+        html += '<div class="city-grid">' + divergences.map(renderCard).join('') + '</div>';
+      }
+      if (aligned.length > 0) {
+        html += '<div class="section-label">✓ Market Aligned with Forecasts (' + aligned.length + ')</div>';
+        html += '<div class="city-grid">' + aligned.map(renderCard).join('') + '</div>';
+      }
+      if (noData.length > 0) {
+        html += '<div class="section-label">⏳ Awaiting Data (' + noData.length + ')</div>';
+        html += '<div class="section-note">These cities have forecast data but no matching Kalshi market was found for today or tomorrow. The market may have closed or hasn\'t opened yet.</div>';
+        html += '<div class="city-grid">' + noData.map(renderCard).join('') + '</div>';
+      }
+      if (!html) html = '<div class="loading-container"><h2>No active markets right now</h2><p>Check back tomorrow morning.</p></div>';
+      document.getElementById('mainContent').innerHTML = html;
+    })
+    .catch(function(e) {
+      console.error('Load failed:', e);
+      document.getElementById('mainContent').innerHTML = '<div class="loading-container"><h2>Loading data...</h2><p>Retrying in 10 seconds...</p></div>';
+      setTimeout(loadOverview, 10000);
+    });
 }
 
 function renderCard(c) {
-  const temp = c.currentTemp !== null ? Math.round(c.currentTemp) + '<span class="unit">°F</span>' : '--';
-  const kalshiUrl = getKalshiUrl(c.id);
-
-  // Market date badge — uses forecastDate which matches the Kalshi market
-  const mDate = formatMarketDate(c.forecastDate || c.kalshi?.marketDate);
-  let dateBadge = '';
+  var temp = c.currentTemp != null ? Math.round(c.currentTemp) + '<span class="unit">°F</span>' : '--';
+  var url = KALSHI_URLS[c.id] || 'https://kalshi.com/category/climate';
+  var mDate = formatMarketDate(c.forecastDate || (c.kalshi && c.kalshi.marketDate));
+  var dateBadge = '';
   if (mDate.relative) {
-    const cls = mDate.relativeClass === 'tomorrow' ? 'market-date-badge tomorrow' : 'market-date-badge';
-    dateBadge = `<div class="${cls}">📅 ${mDate.relative} — ${mDate.display}</div>`;
+    var cls = mDate.relativeClass === 'tomorrow' ? 'market-date-badge tomorrow' : 'market-date-badge';
+    dateBadge = '<div class="' + cls + '">📅 ' + mDate.relative + ' — ' + mDate.display + '</div>';
   }
-
-  let badge = '<span class="signal-badge nodata">NO DATA YET</span>';
-  let detail = '';
-
+  var badge = '<span class="signal-badge nodata">NO DATA YET</span>';
+  var detail = '';
   if (c.signal) {
     if (c.signal.type === 'DIVERGENCE') {
       badge = '<span class="signal-badge divergence">⚡ DIVERGENCE</span>';
-      detail = `Forecasts → <strong>${c.signal.consensusBracket}</strong> (${formatPrice(c.signal.consensusBracketPrice)}) · Market favors <strong>${c.signal.marketFavorite}</strong> (${formatPrice(c.signal.marketFavoritePrice)})`;
+      detail = 'Forecasts → <strong>' + c.signal.consensusBracket + '</strong> (' + formatPrice(c.signal.consensusBracketPrice) + ') · Market favors <strong>' + c.signal.marketFavorite + '</strong> (' + formatPrice(c.signal.marketFavoritePrice) + ')';
     } else {
       badge = '<span class="signal-badge aligned">✓ ALIGNED</span>';
-      detail = `Forecasts & market agree: <strong>${c.signal.marketFavorite}</strong> at ${formatPrice(c.signal.marketFavoritePrice)}`;
+      detail = 'Forecasts & market agree: <strong>' + c.signal.marketFavorite + '</strong> at ' + formatPrice(c.signal.marketFavoritePrice);
     }
   }
-
-  return `
-    <div class="city-card" onclick="openCity('${c.id}')">
-      <div class="card-top">
-        <div>
-          <div class="city-name">${c.name}</div>
-          ${badge}
-        </div>
-        <div style="text-align:right">
-          <div class="current-temp">${temp}</div>
-          <div class="current-desc">${c.currentDesc || 'Current'}</div>
-        </div>
-      </div>
-      ${dateBadge}
-      <div class="forecast-row">
-        ${(c.forecasts || []).map(f => `
-          <div class="forecast-chip">
-            <span class="src">${f.source}</span>
-            <span class="val">H: ${f.high != null ? f.high + '°' : '--'}</span>
-          </div>
-        `).join('')}
-        ${c.consensus?.high != null ? `
-          <div class="forecast-chip consensus">
-            <span class="src">Consensus</span>
-            <span class="val">${c.consensus.high}°F</span>
-          </div>
-        ` : ''}
-      </div>
-      ${detail ? `<div class="signal-detail">${detail}</div>` : ''}
-      <a href="${kalshiUrl}" target="_blank" class="kalshi-link" onclick="event.stopPropagation()">Trade on Kalshi →</a>
-    </div>`;
+  return '<div class="city-card" onclick="openCity(\'' + c.id + '\')">' +
+    '<div class="card-top"><div><div class="city-name">' + c.name + '</div>' + badge + '</div>' +
+    '<div style="text-align:right"><div class="current-temp">' + temp + '</div><div class="current-desc">' + (c.currentDesc || 'Current') + '</div></div></div>' +
+    dateBadge +
+    '<div class="forecast-row">' + (c.forecasts || []).map(function(f) {
+      return '<div class="forecast-chip"><span class="src">' + f.source + '</span><span class="val">H: ' + (f.high != null ? f.high + '°' : '--') + '</span></div>';
+    }).join('') +
+    (c.consensus && c.consensus.high != null ? '<div class="forecast-chip consensus"><span class="src">Consensus</span><span class="val">' + c.consensus.high + '°F</span></div>' : '') +
+    '</div>' +
+    (detail ? '<div class="signal-detail">' + detail + '</div>' : '') +
+    '<a href="' + url + '" target="_blank" class="kalshi-link" onclick="event.stopPropagation()">Trade on Kalshi →</a></div>';
 }
 
-// ─── Modal ───────────────────────────────────────────────
 function openCity(id) {
-  const c = ALL_DATA.find(d => d.id === id);
+  var c = null;
+  for (var i = 0; i < ALL_DATA.length; i++) { if (ALL_DATA[i].id === id) { c = ALL_DATA[i]; break; } }
   if (!c) return;
-
-  const kalshiUrl = getKalshiUrl(id);
+  var url = KALSHI_URLS[id] || 'https://kalshi.com/category/climate';
   document.getElementById('modal').classList.add('active');
   document.getElementById('modalTitle').textContent = c.name;
-
-  let html = '';
-
-  // Market date banner — big and prominent
-  const mDate = formatMarketDate(c.forecastDate || c.kalshi?.marketDate);
+  var html = '';
+  var mDate = formatMarketDate(c.forecastDate || (c.kalshi && c.kalshi.marketDate));
   if (mDate.relative) {
-    html += `<div class="modal-date-banner">
-      <span class="date-main">📅 ${mDate.display}</span>
-      <span class="date-relative ${mDate.relativeClass}">${mDate.relative}</span>
-    </div>`;
+    html += '<div class="modal-date-banner"><span class="date-main">📅 ' + mDate.display + '</span><span class="date-relative ' + mDate.relativeClass + '">' + mDate.relative + '</span></div>';
     if (mDate.relativeClass === 'tomorrow') {
-      html += `<div class="modal-note">⚠️ This is <strong style="color:#c084fc">tomorrow's market</strong>. Today's market has closed or is near closing. All forecasts and market data below are for tomorrow. WeatherEdge always shows the next tradeable market.</div>`;
+      html += '<div class="modal-note">⚠️ This is <strong style="color:#c084fc">tomorrow\'s market</strong>. Today\'s market has closed or is near closing. All forecasts and data below are for tomorrow.</div>';
     }
   }
-
-  // Current temp
-  if (c.currentTemp !== null) {
-    html += `<div class="consensus-row">
-      <span class="consensus-label">Current Temp Right Now — ${c.currentDesc || 'NWS Station'}</span>
-      <span class="consensus-val">${c.currentTemp}°F</span>
-    </div>`;
+  if (c.currentTemp != null) {
+    html += '<div class="consensus-row"><span class="consensus-label">Current Temp Right Now — ' + (c.currentDesc || 'NWS Station') + '</span><span class="consensus-val">' + c.currentTemp + '°F</span></div>';
   }
-
-  // Forecasts — labeled for the CORRECT date
-  const forecastLabel = mDate.display ? `for ${mDate.relative} (${mDate.display})` : 'for Today';
-  html += `<div class="section-label" style="margin-top:0">Forecasts ${forecastLabel}</div>`;
+  var forecastLabel = mDate.display ? 'for ' + mDate.relative + ' (' + mDate.display + ')' : 'for Today';
+  html += '<div class="section-label" style="margin-top:0">Forecasts ' + forecastLabel + '</div>';
   html += '<div class="forecast-row" style="margin-bottom:20px">';
-  (c.forecasts || []).forEach(f => {
-    html += `<div class="forecast-chip">
-      <span class="src">${f.source}</span>
-      <span class="val">H: ${f.high != null ? f.high + '°' : '--'}  L: ${f.low != null ? f.low + '°' : '--'}</span>
-    </div>`;
+  (c.forecasts || []).forEach(function(f) {
+    html += '<div class="forecast-chip"><span class="src">' + f.source + '</span><span class="val">H: ' + (f.high != null ? f.high + '°' : '--') + '  L: ' + (f.low != null ? f.low + '°' : '--') + '</span></div>';
   });
-  if (c.consensus?.high != null) {
-    html += `<div class="forecast-chip consensus">
-      <span class="src">Consensus</span>
-      <span class="val">H: ${c.consensus.high}°  L: ${c.consensus.low || '--'}°</span>
-    </div>`;
+  if (c.consensus && c.consensus.high != null) {
+    html += '<div class="forecast-chip consensus"><span class="src">Consensus</span><span class="val">H: ' + c.consensus.high + '°  L: ' + (c.consensus.low || '--') + '°</span></div>';
   }
   html += '</div>';
-
-  // Kalshi brackets
-  if (c.kalshi?.markets?.length) {
-    html += `<div class="section-label">Kalshi Market — ${c.kalshi.title || c.kalshi.subtitle || 'High Temp'}</div>`;
+  if (c.kalshi && c.kalshi.markets && c.kalshi.markets.length) {
+    html += '<div class="section-label">Kalshi Market — ' + (c.kalshi.title || 'High Temp') + '</div>';
     html += '<table class="bracket-table"><thead><tr><th>Bracket</th><th>Price</th><th>Volume</th></tr></thead><tbody>';
-
-    for (const m of c.kalshi.markets) {
-      const price = parseFloat(m.lastPrice) || parseFloat(m.yesAsk) || 0;
-      const isMatch = c.signal?.consensusBracket === m.subtitle;
-      html += `<tr class="${isMatch ? 'consensus-match' : ''}">
-        <td>${m.subtitle}${isMatch ? ' ← Forecast' : ''}</td>
-        <td class="price-cell">${formatPrice(price)}</td>
-        <td style="color:#64748b">${parseInt(m.volume || 0).toLocaleString()}</td>
-      </tr>`;
-    }
+    c.kalshi.markets.forEach(function(m) {
+      var price = parseFloat(m.lastPrice) || parseFloat(m.yesAsk) || 0;
+      var isMatch = c.signal && c.signal.consensusBracket === m.subtitle;
+      html += '<tr class="' + (isMatch ? 'consensus-match' : '') + '"><td>' + m.subtitle + (isMatch ? ' ← Forecast' : '') + '</td><td class="price-cell">' + formatPrice(price) + '</td><td style="color:#64748b">' + parseInt(m.volume || 0).toLocaleString() + '</td></tr>';
+    });
     html += '</tbody></table>';
-    html += `<a href="${kalshiUrl}" target="_blank" class="kalshi-link">Trade This Market on Kalshi →</a>`;
+    html += '<a href="' + url + '" target="_blank" class="kalshi-link">Trade This Market on Kalshi →</a>';
   } else {
-    html += `<p style="color:#64748b;margin-top:16px">No active Kalshi market found. The market may have already closed and settled, or tomorrow's market hasn't opened yet.</p>`;
-    html += `<a href="${kalshiUrl}" target="_blank" class="kalshi-link" style="background:#334155">View on Kalshi →</a>`;
+    html += '<p style="color:#64748b;margin-top:16px">No active Kalshi market found for today or tomorrow.</p>';
+    html += '<a href="' + url + '" target="_blank" class="kalshi-link" style="background:#334155">View on Kalshi →</a>';
   }
-
   document.getElementById('modalBody').innerHTML = html;
 }
 
 function closeModal() { document.getElementById('modal').classList.remove('active'); }
-document.getElementById('modal').addEventListener('click', e => {
-  if (e.target === document.getElementById('modal')) closeModal();
-});
-document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+document.getElementById('modal').addEventListener('click', function(e) { if (e.target === document.getElementById('modal')) closeModal(); });
+document.addEventListener('keydown', function(e) { if (e.key === 'Escape') closeModal(); });
 
-// ─── Init ────────────────────────────────────────────────
-function toggleHow() {
-  const c = document.getElementById('howContent');
-  const btn = document.querySelector('.how-toggle');
-  c.classList.toggle('open');
-  btn.textContent = c.classList.contains('open') ? 'Hide Guide ▴' : 'Show Guide ▾';
-}
-
-loadOverview();
-setInterval(loadOverview, 2 * 60 * 1000);
-
-// Live clock — ticks every second
-setInterval(() => {
-  const now = new Date();
-  const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-  document.getElementById('liveClock').textContent = timeStr;
-
-  // Countdown to next refresh
+// Live clock
+setInterval(function() {
+  var now = new Date();
+  document.getElementById('liveClock').textContent = now.toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
   if (nextRefreshIn > 0) nextRefreshIn--;
-  if (nextRefreshIn > 0) {
-    const mins = Math.floor(nextRefreshIn / 60);
-    const secs = nextRefreshIn % 60;
-    document.getElementById('refreshCountdown').textContent = `Next refresh in ${mins}:${secs.toString().padStart(2,'0')}`;
-  } else {
-    document.getElementById('refreshCountdown').textContent = 'Refreshing...';
-  }
+  var mins = Math.floor(nextRefreshIn / 60);
+  var secs = nextRefreshIn % 60;
+  document.getElementById('refreshCountdown').textContent = nextRefreshIn > 0 ? 'Next refresh in ' + mins + ':' + (secs < 10 ? '0' : '') + secs : 'Refreshing...';
 }, 1000);
+
+// Start
+loadOverview();
+setInterval(loadOverview, 120000);
 </script>
 </body>
 </html>
