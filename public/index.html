@@ -26,7 +26,9 @@
   .logo h1 { font-size: 22px; font-weight: 700; color: #fff; }
   .logo h1 span { color: #3b82f6; }
   .logo-sub { font-size: 12px; color: #64748b; letter-spacing: 0.5px; }
-  .header-right { display: flex; align-items: center; gap: 16px; font-size: 13px; color: #64748b; }
+  .header-right { display: flex; align-items: center; gap: 12px; font-size: 13px; color: #64748b; }
+  .live-clock { font-variant-numeric: tabular-nums; color: #94a3b8; font-size: 12px; }
+  .refresh-countdown { color: #475569; font-size: 11px; }
   .status-dot {
     width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 4px;
   }
@@ -203,6 +205,38 @@
   .signal-example strong { color: #f59e0b; }
   .signal-example .green { color: #22c55e; }
 
+  /* Trust & Methodology */
+  .trust-section {
+    background: #111827; border: 1px solid #1e293b; border-radius: 12px;
+    padding: 24px; margin-top: 32px;
+  }
+  .trust-section h3 { font-size: 15px; color: #fff; margin-bottom: 16px; }
+  .trust-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 12px; margin-bottom: 20px;
+  }
+  .trust-card {
+    background: #0a0e17; border: 1px solid #1e293b; border-radius: 10px; padding: 16px;
+  }
+  .trust-card .trust-icon { font-size: 20px; margin-bottom: 8px; }
+  .trust-card .trust-title { font-size: 13px; font-weight: 600; color: #e1e4ea; margin-bottom: 4px; }
+  .trust-card .trust-desc { font-size: 12px; color: #64748b; line-height: 1.5; }
+  .trust-card a { color: #3b82f6; text-decoration: none; font-size: 11px; }
+  .trust-card a:hover { text-decoration: underline; }
+  .track-record {
+    background: #0a0e17; border: 1px solid #1e293b; border-radius: 10px; padding: 16px;
+  }
+  .track-record-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px; }
+  .track-record-header h4 { font-size: 14px; color: #fff; }
+  .track-record-badge {
+    font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 6px;
+    background: rgba(59,130,246,0.15); color: #60a5fa;
+  }
+  .track-stats { display: flex; gap: 20px; flex-wrap: wrap; }
+  .track-stat { text-align: center; }
+  .track-stat .stat-val { font-size: 22px; font-weight: 700; color: #3b82f6; }
+  .track-stat .stat-label { font-size: 11px; color: #64748b; margin-top: 2px; }
+
   .disclaimer {
     background: #111827; border: 1px solid #1e293b; border-radius: 12px;
     padding: 20px 24px; margin-top: 32px;
@@ -232,8 +266,10 @@
     <div class="logo-sub">Kalshi Weather Market Signals</div>
   </div>
   <div class="header-right">
-    <span><span class="status-dot loading" id="statusDot"></span> <span id="statusText">Loading...</span></span>
-    <span id="updateTime"></span>
+    <div style="text-align:right">
+      <div><span class="status-dot loading" id="statusDot"></span> <span id="statusText">Loading...</span> · <span class="live-clock" id="liveClock"></span></div>
+      <div class="refresh-countdown" id="refreshCountdown"></div>
+    </div>
   </div>
 </div>
 
@@ -296,6 +332,65 @@
     </div>
   </div>
 
+  <!-- Trust & Methodology -->
+  <div class="trust-section">
+    <h3>🔍 Why You Can Trust This Data</h3>
+    <div class="trust-grid">
+      <div class="trust-card">
+        <div class="trust-icon">🏛️</div>
+        <div class="trust-title">Official Settlement Source</div>
+        <div class="trust-desc">Kalshi markets settle based on the NWS Daily Climate Report — the same source our forecasts reference. We're comparing apples to apples.</div>
+        <a href="https://help.kalshi.com/markets/popular-markets/weather-markets" target="_blank">View Kalshi's rules →</a>
+      </div>
+      <div class="trust-card">
+        <div class="trust-icon">📡</div>
+        <div class="trust-title">2 Independent Forecast Sources</div>
+        <div class="trust-desc">We pull from the National Weather Service (US government) and Open-Meteo (open-source, aggregates multiple global models). No single point of failure.</div>
+        <a href="https://api.weather.gov" target="_blank">NWS API</a> · <a href="https://open-meteo.com" target="_blank">Open-Meteo</a>
+      </div>
+      <div class="trust-card">
+        <div class="trust-icon">⚡</div>
+        <div class="trust-title">Real-Time Kalshi Prices</div>
+        <div class="trust-desc">Market prices come directly from Kalshi's public API — the same data that powers their own website. Nothing is delayed or estimated.</div>
+        <a href="https://docs.kalshi.com" target="_blank">Kalshi API docs →</a>
+      </div>
+      <div class="trust-card">
+        <div class="trust-icon">🔓</div>
+        <div class="trust-title">Fully Transparent</div>
+        <div class="trust-desc">Every data source is public and verifiable. You can check any forecast or price we display against the original source yourself at any time.</div>
+      </div>
+    </div>
+
+    <!-- Track Record -->
+    <div class="track-record">
+      <div class="track-record-header">
+        <h4>📊 Track Record</h4>
+        <span class="track-record-badge" id="trackBadge">Recording Since April 2026</span>
+      </div>
+      <div class="track-stats" id="trackStats">
+        <div class="track-stat">
+          <div class="stat-val" id="statCities">--</div>
+          <div class="stat-label">Cities Tracked</div>
+        </div>
+        <div class="track-stat">
+          <div class="stat-val" id="statActive">--</div>
+          <div class="stat-label">Active Markets</div>
+        </div>
+        <div class="track-stat">
+          <div class="stat-val" id="statSources">2</div>
+          <div class="stat-label">Forecast Sources</div>
+        </div>
+        <div class="track-stat">
+          <div class="stat-val" id="statDivergences">--</div>
+          <div class="stat-label">Divergences Found Today</div>
+        </div>
+      </div>
+      <p style="font-size:12px;color:#475569;margin-top:14px;line-height:1.6">
+        WeatherEdge is actively building a verified accuracy record. Each day, we log our forecast consensus before market settlement and compare it to the actual NWS result the following morning. Full historical accuracy data will be published here as our dataset grows. We believe in earning your trust through transparency — not promises.
+      </p>
+    </div>
+  </div>
+
   <!-- Disclaimer -->
   <div class="disclaimer">
     <h3>Disclaimer</h3>
@@ -340,6 +435,7 @@ const KALSHI_URLS = {
 
 let ALL_DATA = [];
 let lastFetchTime = null;
+let nextRefreshIn = 120; // seconds
 
 function formatPrice(p) {
   if (p === null || p === undefined) return '--';
@@ -384,7 +480,14 @@ async function loadOverview() {
 
     dot.className = 'status-dot live';
     txt.textContent = 'Live';
-    document.getElementById('updateTime').textContent = 'Updated ' + lastFetchTime.toLocaleTimeString();
+    nextRefreshIn = 120;
+
+    // Update track record stats
+    const activeMarkets = ALL_DATA.filter(c => c.kalshi?.markets?.length > 0).length;
+    const divergences = ALL_DATA.filter(c => c.signal?.type === 'DIVERGENCE');
+    document.getElementById('statCities').textContent = ALL_DATA.length;
+    document.getElementById('statActive').textContent = activeMarkets;
+    document.getElementById('statDivergences').textContent = divergences.length;
 
     const divergences = ALL_DATA.filter(c => c.signal?.type === 'DIVERGENCE');
     const aligned = ALL_DATA.filter(c => c.signal?.type === 'ALIGNED');
@@ -567,6 +670,23 @@ function toggleHow() {
 
 loadOverview();
 setInterval(loadOverview, 2 * 60 * 1000);
+
+// Live clock — ticks every second
+setInterval(() => {
+  const now = new Date();
+  const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  document.getElementById('liveClock').textContent = timeStr;
+
+  // Countdown to next refresh
+  if (nextRefreshIn > 0) nextRefreshIn--;
+  if (nextRefreshIn > 0) {
+    const mins = Math.floor(nextRefreshIn / 60);
+    const secs = nextRefreshIn % 60;
+    document.getElementById('refreshCountdown').textContent = `Next refresh in ${mins}:${secs.toString().padStart(2,'0')}`;
+  } else {
+    document.getElementById('refreshCountdown').textContent = 'Refreshing...';
+  }
+}, 1000);
 </script>
 </body>
 </html>
