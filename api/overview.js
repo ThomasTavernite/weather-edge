@@ -1,23 +1,24 @@
 // ═══════════════════════════════════════════════════════════
 //  WeatherEdge — api/overview.js (FAST version)
-//  Hardcoded NWS grid coordinates to skip /points/ lookup
-//  NWS is non-blocking — page loads with Open-Meteo if NWS is slow
+//  Open-Meteo for forecasts (instant, no auth)
+//  NWS for current temp only (single fast call)
+//  Kalshi for market prices
 // ═══════════════════════════════════════════════════════════
 
 const CITIES = [
-  { id: 'nyc',   name: 'New York City',  lat: 40.7128,  lon: -74.0060,  nws: 'KNYC', grid: 'OKX/33,37',    kalshi: 'KXHIGHNY'   },
-  { id: 'chi',   name: 'Chicago',        lat: 41.7868,  lon: -87.7522,  nws: 'KMDW', grid: 'LOT/65,72',    kalshi: 'KXHIGHCHI'  },
-  { id: 'mia',   name: 'Miami',          lat: 25.7959,  lon: -80.2870,  nws: 'KMIA', grid: 'MFL/111,50',   kalshi: 'KXHIGHMIA'  },
-  { id: 'lax',   name: 'Los Angeles',    lat: 33.9382,  lon: -118.3886, nws: 'KLAX', grid: 'LOX/150,44',   kalshi: 'KXHIGHLAX'  },
-  { id: 'sfo',   name: 'San Francisco',  lat: 37.6213,  lon: -122.3790, nws: 'KSFO', grid: 'MTR/84,105',   kalshi: 'KXHIGHTSFO' },
-  { id: 'phi',   name: 'Philadelphia',   lat: 39.8744,  lon: -75.2424,  nws: 'KPHL', grid: 'PHI/49,75',    kalshi: 'KXHIGHPHIL' },
-  { id: 'aus',   name: 'Austin',         lat: 30.1944,  lon: -97.6700,  nws: 'KAUS', grid: 'EWX/156,91',   kalshi: 'KXHIGHAUS'  },
-  { id: 'den',   name: 'Denver',         lat: 39.8561,  lon: -104.6737, nws: 'KDEN', grid: 'BOU/62,60',    kalshi: 'KXHIGHDEN'  },
-  { id: 'sea',   name: 'Seattle',        lat: 47.4502,  lon: -122.3088, nws: 'KSEA', grid: 'SEW/124,67',   kalshi: 'KXHIGHTSEA' },
-  { id: 'lv',    name: 'Las Vegas',      lat: 36.0840,  lon: -115.1537, nws: 'KLAS', grid: 'VEF/122,97',   kalshi: 'KXHIGHTLV'  },
-  { id: 'bos',   name: 'Boston',         lat: 42.3656,  lon: -71.0096,  nws: 'KBOS', grid: 'BOX/71,90',    kalshi: 'KXHIGHTBOS' },
-  { id: 'nola',  name: 'New Orleans',    lat: 29.9934,  lon: -90.2580,  nws: 'KMSY', grid: 'LIX/76,74',    kalshi: 'KXHIGHTNOLA'},
-  { id: 'dc',    name: 'Washington DC',  lat: 38.8512,  lon: -77.0402,  nws: 'KDCA', grid: 'LWX/97,71',    kalshi: 'KXHIGHTDC'  },
+  { id: 'nyc',   name: 'New York City',  lat: 40.7128,  lon: -74.0060,  nws: 'KNYC', kalshi: 'KXHIGHNY'   },
+  { id: 'chi',   name: 'Chicago',        lat: 41.7868,  lon: -87.7522,  nws: 'KMDW', kalshi: 'KXHIGHCHI'  },
+  { id: 'mia',   name: 'Miami',          lat: 25.7959,  lon: -80.2870,  nws: 'KMIA', kalshi: 'KXHIGHMIA'  },
+  { id: 'lax',   name: 'Los Angeles',    lat: 33.9382,  lon: -118.3886, nws: 'KLAX', kalshi: 'KXHIGHLAX'  },
+  { id: 'sfo',   name: 'San Francisco',  lat: 37.6213,  lon: -122.3790, nws: 'KSFO', kalshi: 'KXHIGHTSFO' },
+  { id: 'phi',   name: 'Philadelphia',   lat: 39.8744,  lon: -75.2424,  nws: 'KPHL', kalshi: 'KXHIGHPHIL' },
+  { id: 'aus',   name: 'Austin',         lat: 30.1944,  lon: -97.6700,  nws: 'KAUS', kalshi: 'KXHIGHAUS'  },
+  { id: 'den',   name: 'Denver',         lat: 39.8561,  lon: -104.6737, nws: 'KDEN', kalshi: 'KXHIGHDEN'  },
+  { id: 'sea',   name: 'Seattle',        lat: 47.4502,  lon: -122.3088, nws: 'KSEA', kalshi: 'KXHIGHTSEA' },
+  { id: 'lv',    name: 'Las Vegas',      lat: 36.0840,  lon: -115.1537, nws: 'KLAS', kalshi: 'KXHIGHTLV'  },
+  { id: 'bos',   name: 'Boston',         lat: 42.3656,  lon: -71.0096,  nws: 'KBOS', kalshi: 'KXHIGHTBOS' },
+  { id: 'nola',  name: 'New Orleans',    lat: 29.9934,  lon: -90.2580,  nws: 'KMSY', kalshi: 'KXHIGHTNOLA'},
+  { id: 'dc',    name: 'Washington DC',  lat: 38.8512,  lon: -77.0402,  nws: 'KDCA', kalshi: 'KXHIGHTDC'  },
 ];
 
 function getTodayStr() {
@@ -28,14 +29,13 @@ function getTomorrowStr() {
   return d.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
 }
 
-// ─── Safe Fetch (5s timeout — fail fast) ─────────────────
 async function safeFetch(url, timeout = 5000) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeout);
   try {
     const res = await fetch(url, {
       signal: controller.signal,
-      headers: { 'User-Agent': 'WeatherEdge/1.0 (contact@weatheredge.com)', 'Accept': 'application/json' }
+      headers: { 'User-Agent': 'WeatherEdge/1.0', 'Accept': 'application/json' }
     });
     clearTimeout(timer);
     if (!res.ok) return null;
@@ -46,7 +46,7 @@ async function safeFetch(url, timeout = 5000) {
   }
 }
 
-// ─── Open-Meteo (fast, no auth, most reliable) ───────────
+// ─── Open-Meteo (fast, reliable, no auth) ────────────────
 async function getOpenMeteo(city) {
   const url = `https://api.open-meteo.com/v1/forecast?latitude=${city.lat}&longitude=${city.lon}&daily=temperature_2m_max,temperature_2m_min&temperature_unit=fahrenheit&timezone=auto&forecast_days=3`;
   const data = await safeFetch(url);
@@ -58,24 +58,7 @@ async function getOpenMeteo(city) {
   return result;
 }
 
-// ─── NWS Forecast (uses hardcoded grid — skips /points/) ─
-async function getNWSForecast(city) {
-  const [office, coords] = city.grid.split('/');
-  const url = `https://api.weather.gov/gridpoints/${office}/${coords}/forecast`;
-  const fc = await safeFetch(url);
-  if (!fc?.properties?.periods) return null;
-
-  const result = {};
-  for (const p of fc.properties.periods) {
-    const pDate = p.startTime.slice(0, 10);
-    if (!result[pDate]) result[pDate] = { high: null, low: null };
-    if (p.isDaytime) result[pDate].high = p.temperature;
-    else result[pDate].low = p.temperature;
-  }
-  return result;
-}
-
-// ─── NWS Current Observation ─────────────────────────────
+// ─── NWS Current Temp Only (single fast call) ────────────
 async function getNWSObservation(city) {
   const data = await safeFetch(`https://api.weather.gov/stations/${city.nws}/observations/latest`);
   if (!data?.properties?.temperature?.value && data?.properties?.temperature?.value !== 0) return null;
@@ -118,14 +101,12 @@ async function getKalshi(seriesTicker) {
   return todayEvent || tomorrowEvent || null;
 }
 
-// ─── Build Signal ────────────────────────────────────────
 function buildSignal(consensusHigh, kalshiData) {
   if (!kalshiData?.markets?.length || consensusHigh === null) return null;
   const sorted = [...kalshiData.markets].sort((a, b) =>
     (parseFloat(b.lastPrice) || parseFloat(b.yesAsk) || 0) - (parseFloat(a.lastPrice) || parseFloat(a.yesAsk) || 0)
   );
   const fav = sorted[0];
-
   let match = null;
   for (const m of kalshiData.markets) {
     const s = m.subtitle.toLowerCase();
@@ -146,7 +127,6 @@ function buildSignal(consensusHigh, kalshiData) {
   };
 }
 
-// ─── Main Handler ────────────────────────────────────────
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET');
@@ -154,11 +134,9 @@ export default async function handler(req, res) {
 
   try {
     const results = await Promise.all(CITIES.map(async (city) => {
-      // Fetch all sources in parallel — NWS failures don't block the response
-      const [openMeteoMap, nwsForecastMap, observation, kalshi] = await Promise.all([
+      const [openMeteoMap, observation, kalshi] = await Promise.all([
         getOpenMeteo(city),
-        getNWSForecast(city).catch(() => null),   // non-blocking
-        getNWSObservation(city).catch(() => null), // non-blocking
+        getNWSObservation(city).catch(() => null),
         getKalshi(city.kalshi)
       ]);
 
@@ -167,9 +145,6 @@ export default async function handler(req, res) {
 
       if (openMeteoMap?.[targetDate]) {
         forecasts.push({ source: 'Open-Meteo', high: openMeteoMap[targetDate].high, low: openMeteoMap[targetDate].low });
-      }
-      if (nwsForecastMap?.[targetDate]) {
-        forecasts.push({ source: 'NWS', high: nwsForecastMap[targetDate].high, low: nwsForecastMap[targetDate].low });
       }
 
       const highs = forecasts.filter(f => f.high != null).map(f => f.high);

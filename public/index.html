@@ -223,19 +223,6 @@
   .trust-card .trust-desc { font-size: 12px; color: #64748b; line-height: 1.5; }
   .trust-card a { color: #3b82f6; text-decoration: none; font-size: 11px; }
   .trust-card a:hover { text-decoration: underline; }
-  .track-record {
-    background: #0a0e17; border: 1px solid #1e293b; border-radius: 10px; padding: 16px;
-  }
-  .track-record-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px; }
-  .track-record-header h4 { font-size: 14px; color: #fff; }
-  .track-record-badge {
-    font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 6px;
-    background: rgba(59,130,246,0.15); color: #60a5fa;
-  }
-  .track-stats { display: flex; gap: 20px; flex-wrap: wrap; }
-  .track-stat { text-align: center; }
-  .track-stat .stat-val { font-size: 22px; font-weight: 700; color: #3b82f6; }
-  .track-stat .stat-label { font-size: 11px; color: #64748b; margin-top: 2px; }
 
   .disclaimer {
     background: #111827; border: 1px solid #1e293b; border-radius: 12px;
@@ -344,9 +331,9 @@
       </div>
       <div class="trust-card">
         <div class="trust-icon">📡</div>
-        <div class="trust-title">2 Independent Forecast Sources</div>
-        <div class="trust-desc">We pull from the National Weather Service (US government) and Open-Meteo (open-source, aggregates multiple global models). No single point of failure.</div>
-        <a href="https://api.weather.gov" target="_blank">NWS API</a> · <a href="https://open-meteo.com" target="_blank">Open-Meteo</a>
+        <div class="trust-title">Open-Meteo Forecasts</div>
+        <div class="trust-desc">Forecasts come from Open-Meteo, an open-source service that aggregates multiple global weather models including GFS and ECMWF for maximum accuracy.</div>
+        <a href="https://open-meteo.com" target="_blank">Open-Meteo →</a>
       </div>
       <div class="trust-card">
         <div class="trust-icon">⚡</div>
@@ -361,34 +348,7 @@
       </div>
     </div>
 
-    <!-- Track Record -->
-    <div class="track-record">
-      <div class="track-record-header">
-        <h4>📊 Track Record</h4>
-        <span class="track-record-badge" id="trackBadge">Recording Since April 2026</span>
-      </div>
-      <div class="track-stats" id="trackStats">
-        <div class="track-stat">
-          <div class="stat-val" id="statCities">--</div>
-          <div class="stat-label">Cities Tracked</div>
-        </div>
-        <div class="track-stat">
-          <div class="stat-val" id="statActive">--</div>
-          <div class="stat-label">Active Markets</div>
-        </div>
-        <div class="track-stat">
-          <div class="stat-val" id="statSources">2</div>
-          <div class="stat-label">Forecast Sources</div>
-        </div>
-        <div class="track-stat">
-          <div class="stat-val" id="statDivergences">--</div>
-          <div class="stat-label">Divergences Found Today</div>
-        </div>
-      </div>
-      <p style="font-size:12px;color:#475569;margin-top:14px;line-height:1.6">
-        WeatherEdge is actively building a verified accuracy record. Each day, we log our forecast consensus before market settlement and compare it to the actual NWS result the following morning. Full historical accuracy data will be published here as our dataset grows. We believe in earning your trust through transparency — not promises.
-      </p>
-    </div>
+
   </div>
 
   <!-- Disclaimer -->
