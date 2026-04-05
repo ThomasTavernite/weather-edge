@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════
-//  WeatherEdge — api/overview.js (FAST version)
+//  WeatherBid — api/overview.js (FAST version)
 //  Open-Meteo for forecasts (instant, no auth)
 //  NWS for current temp only (single fast call)
 //  Kalshi for market prices
@@ -35,7 +35,7 @@ async function safeFetch(url, timeout = 5000) {
   try {
     const res = await fetch(url, {
       signal: controller.signal,
-      headers: { 'User-Agent': 'WeatherEdge/1.0', 'Accept': 'application/json' }
+      headers: { 'User-Agent': 'WeatherBid/1.0', 'Accept': 'application/json' }
     });
     clearTimeout(timer);
     if (!res.ok) return null;
