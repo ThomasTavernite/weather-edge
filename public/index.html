@@ -13,7 +13,6 @@
     min-height: 100vh;
   }
 
-  /* ─── Header ─── */
   .header {
     background: linear-gradient(135deg, #0f1724 0%, #141e30 100%);
     border-bottom: 1px solid #1e293b;
@@ -35,11 +34,13 @@
   .status-dot.loading { background: #f59e0b; animation: pulse 1.5s infinite; }
   @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
 
-  /* ─── Main ─── */
   .container { max-width: 1200px; margin: 0 auto; padding: 24px; }
   .section-label {
     font-size: 13px; color: #64748b; text-transform: uppercase;
     letter-spacing: 1px; margin-bottom: 16px; font-weight: 600;
+  }
+  .section-note {
+    font-size: 12px; color: #475569; margin-top: -10px; margin-bottom: 16px; line-height: 1.5;
   }
   .city-grid {
     display: grid;
@@ -47,7 +48,6 @@
     gap: 16px; margin-bottom: 32px;
   }
 
-  /* ─── City Cards ─── */
   .city-card {
     background: #111827; border: 1px solid #1e293b; border-radius: 12px;
     padding: 20px; cursor: pointer; transition: all 0.2s;
@@ -82,7 +82,6 @@
   .consensus-label { font-size: 12px; color: #94a3b8; }
   .consensus-val { font-size: 18px; font-weight: 700; color: #3b82f6; }
 
-  /* Signal badges */
   .signal-badge {
     display: inline-block; padding: 4px 10px; border-radius: 6px;
     font-size: 12px; font-weight: 600; letter-spacing: 0.5px; margin-top: 6px;
@@ -101,7 +100,7 @@
   }
   .kalshi-link:hover { background: #2563eb; }
 
-  /* ─── Modal ─── */
+  /* Modal */
   .modal-overlay {
     display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7);
     z-index: 100; overflow-y: auto; padding: 40px 20px;
@@ -129,7 +128,6 @@
   .bracket-table tr.consensus-match td:first-child { border-left: 3px solid #3b82f6; }
   .price-cell { font-weight: 600; color: #fff; }
 
-  /* ─── Loading ─── */
   .loading-container { text-align: center; padding: 80px 20px; color: #64748b; }
   .loading-container h2 { color: #94a3b8; margin-bottom: 12px; }
   .spinner {
@@ -138,7 +136,14 @@
   }
   @keyframes spin { to { transform: rotate(360deg); } }
 
-  /* ─── Footer ─── */
+  /* Disclaimer */
+  .disclaimer {
+    background: #111827; border: 1px solid #1e293b; border-radius: 12px;
+    padding: 20px 24px; margin-top: 32px;
+  }
+  .disclaimer h3 { font-size: 14px; color: #94a3b8; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .disclaimer p { font-size: 12px; color: #475569; line-height: 1.7; margin-bottom: 8px; }
+
   .footer {
     text-align: center; padding: 32px 24px; font-size: 12px; color: #475569;
     border-top: 1px solid #1e293b; margin-top: 40px;
@@ -175,6 +180,15 @@
       <p style="margin-top:8px;font-size:12px;color:#475569">First load takes ~15 seconds (13 cities × 3 sources)</p>
     </div>
   </div>
+
+  <!-- Disclaimer -->
+  <div class="disclaimer">
+    <h3>Disclaimer</h3>
+    <p><strong style="color:#94a3b8">WeatherEdge is not financial advice.</strong> The information provided on this site is for informational and educational purposes only. Nothing on this site constitutes a recommendation, solicitation, or offer to buy or sell any event contracts, securities, or financial instruments.</p>
+    <p>Trading on Kalshi and other prediction market platforms involves substantial risk of loss and is not suitable for all individuals. You could lose some or all of your invested capital. Past performance of any signal, forecast, or consensus data shown on this site is not indicative of future results.</p>
+    <p>WeatherEdge is not affiliated with, endorsed by, or sponsored by Kalshi, Inc. or the National Weather Service. Weather forecasts are inherently uncertain and should not be relied upon as the sole basis for any trading decision.</p>
+    <p>This platform is not a registered broker-dealer, investment adviser, or futures commission merchant. No content on this site is insured by the FDIC or any government agency. <strong style="color:#94a3b8">Trade at your own risk.</strong></p>
+  </div>
 </div>
 
 <div class="modal-overlay" id="modal">
@@ -193,8 +207,25 @@
 </div>
 
 <script>
-// ─── Store loaded data for modal reuse ───────────────────
+// ─── Kalshi Market URL Map ───────────────────────────────
+const KALSHI_URLS = {
+  nyc:  'https://kalshi.com/markets/kxhighny/highest-temperature-in-nyc',
+  chi:  'https://kalshi.com/markets/kxhighchi/highest-temperature-in-chicago',
+  mia:  'https://kalshi.com/markets/kxhighmia/highest-temperature-in-miami',
+  lax:  'https://kalshi.com/markets/kxhighlax/highest-temperature-in-los-angeles',
+  sfo:  'https://kalshi.com/markets/kxhightsfo/san-francisco-high-temperature-daily',
+  phi:  'https://kalshi.com/markets/kxhighphil/highest-temperature-in-philadelphia',
+  aus:  'https://kalshi.com/markets/kxhighaus/highest-temperature-in-austin',
+  den:  'https://kalshi.com/markets/kxhighden/highest-temperature-in-denver',
+  sea:  'https://kalshi.com/markets/kxhightsea/seattle-maximum-temperature-daily',
+  lv:   'https://kalshi.com/markets/kxhightlv/las-vegas-max-daily-temperature',
+  bos:  'https://kalshi.com/markets/kxhightbos/boston-maximum-daily-temperature',
+  nola: 'https://kalshi.com/markets/kxhightnola/new-orleans-max-temp-daily',
+  dc:   'https://kalshi.com/markets/kxhightdc/washington-dc-daily-max-temp',
+};
+
 let ALL_DATA = [];
+let lastFetchTime = null;
 
 function formatPrice(p) {
   if (p === null || p === undefined) return '--';
@@ -204,19 +235,28 @@ function formatPrice(p) {
   return '$' + n.toFixed(2);
 }
 
+function getKalshiUrl(cityId) {
+  return KALSHI_URLS[cityId] || 'https://kalshi.com/category/climate';
+}
+
 // ─── Load Overview ───────────────────────────────────────
 async function loadOverview() {
   try {
+    // Show loading indicator on refresh
+    const dot = document.getElementById('statusDot');
+    const txt = document.getElementById('statusText');
+    dot.className = 'status-dot loading';
+    txt.textContent = 'Refreshing...';
+
     const res = await fetch('/api/overview');
     const json = await res.json();
     ALL_DATA = json.cities || [];
+    lastFetchTime = new Date();
 
-    // Update status bar
-    document.getElementById('statusDot').className = 'status-dot live';
-    document.getElementById('statusText').textContent = 'Live';
-    if (json.updatedAt) {
-      document.getElementById('updateTime').textContent = 'Updated ' + new Date(json.updatedAt).toLocaleTimeString();
-    }
+    // Update status bar with LOCAL time (when we actually fetched)
+    dot.className = 'status-dot live';
+    txt.textContent = 'Live';
+    document.getElementById('updateTime').textContent = 'Updated ' + lastFetchTime.toLocaleTimeString();
 
     // Split into categories
     const divergences = ALL_DATA.filter(c => c.signal?.type === 'DIVERGENCE');
@@ -235,10 +275,11 @@ async function loadOverview() {
     }
     if (noData.length > 0) {
       html += `<div class="section-label">⏳ Awaiting Data (${noData.length})</div>`;
+      html += `<div class="section-note">These cities have forecast data but no matching Kalshi market was found. This usually means today's market has already closed and settled, or hasn't opened yet. Kalshi weather markets typically open the day before and close the following morning after the NWS publishes the Daily Climate Report.</div>`;
       html += '<div class="city-grid">' + noData.map(renderCard).join('') + '</div>';
     }
 
-    if (!html) html = '<div class="loading-container"><h2>No active markets right now</h2><p>Kalshi weather markets typically open daily around 5 AM ET</p></div>';
+    if (!html) html = '<div class="loading-container"><h2>No active markets right now</h2><p>Kalshi weather markets typically open daily. Check back tomorrow morning.</p></div>';
 
     document.getElementById('mainContent').innerHTML = html;
 
@@ -255,7 +296,7 @@ async function loadOverview() {
 
 function renderCard(c) {
   const temp = c.currentTemp !== null ? Math.round(c.currentTemp) + '<span class="unit">°F</span>' : '--';
-  const consensus = c.consensus?.high !== null ? c.consensus.high + '°F' : '--';
+  const kalshiUrl = getKalshiUrl(c.id);
 
   let badge = '<span class="signal-badge nodata">NO DATA YET</span>';
   let detail = '';
@@ -297,21 +338,21 @@ function renderCard(c) {
         ` : ''}
       </div>
       ${detail ? `<div class="signal-detail">${detail}</div>` : ''}
-      <a href="https://kalshi.com/category/climate" target="_blank" class="kalshi-link" onclick="event.stopPropagation()">Trade on Kalshi →</a>
+      <a href="${kalshiUrl}" target="_blank" class="kalshi-link" onclick="event.stopPropagation()">Trade on Kalshi →</a>
     </div>`;
 }
 
-// ─── Modal (uses already-loaded data) ────────────────────
+// ─── Modal ───────────────────────────────────────────────
 function openCity(id) {
   const c = ALL_DATA.find(d => d.id === id);
   if (!c) return;
 
+  const kalshiUrl = getKalshiUrl(id);
   document.getElementById('modal').classList.add('active');
   document.getElementById('modalTitle').textContent = c.name;
 
   let html = '';
 
-  // Current temp
   if (c.currentTemp !== null) {
     html += `<div class="consensus-row">
       <span class="consensus-label">Current Temp — ${c.currentDesc || 'NWS Station'}</span>
@@ -319,7 +360,6 @@ function openCity(id) {
     </div>`;
   }
 
-  // Forecasts
   html += '<div class="section-label" style="margin-top:0">Forecasts for Today</div>';
   html += '<div class="forecast-row" style="margin-bottom:20px">';
   (c.forecasts || []).forEach(f => {
@@ -336,7 +376,6 @@ function openCity(id) {
   }
   html += '</div>';
 
-  // Kalshi brackets table
   if (c.kalshi?.markets?.length) {
     html += `<div class="section-label">Kalshi Market — ${c.kalshi.title || c.kalshi.subtitle || 'High Temp'}</div>`;
     html += '<table class="bracket-table"><thead><tr><th>Bracket</th><th>Price</th><th>Volume</th></tr></thead><tbody>';
@@ -351,24 +390,24 @@ function openCity(id) {
       </tr>`;
     }
     html += '</tbody></table>';
-    html += `<a href="https://kalshi.com/category/climate" target="_blank" class="kalshi-link">Trade This Market on Kalshi →</a>`;
+    html += `<a href="${kalshiUrl}" target="_blank" class="kalshi-link">Trade This Market on Kalshi →</a>`;
   } else {
-    html += '<p style="color:#64748b;margin-top:16px">No active Kalshi markets found for today.</p>';
+    html += `<p style="color:#64748b;margin-top:16px">No active Kalshi market found for today. The market may have already closed and settled, or hasn't opened yet.</p>`;
+    html += `<a href="${kalshiUrl}" target="_blank" class="kalshi-link" style="background:#334155">View on Kalshi →</a>`;
   }
 
   document.getElementById('modalBody').innerHTML = html;
 }
 
 function closeModal() { document.getElementById('modal').classList.remove('active'); }
-
 document.getElementById('modal').addEventListener('click', e => {
   if (e.target === document.getElementById('modal')) closeModal();
 });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
 
-// ─── Init ────────────────────────────────────────────────
+// ─── Init + Auto-Refresh Every 2 Minutes ─────────────────
 loadOverview();
-setInterval(loadOverview, 5 * 60 * 1000);
+setInterval(loadOverview, 2 * 60 * 1000);
 </script>
 </body>
 </html>
