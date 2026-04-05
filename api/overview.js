@@ -3,6 +3,7 @@
 //  Vercel Serverless Function
 //  Returns summary data for all 13 cities:
 //    forecasts, current temp, Kalshi market prices, signals
+//  Only shows TODAY or TOMORROW markets — nothing further out
 // ═══════════════════════════════════════════════════════════
 
 const CITIES = [
@@ -21,6 +22,17 @@ const CITIES = [
   { id: 'dc',    name: 'Washington DC',  lat: 38.8512,  lon: -77.0402,  nws: 'KDCA', kalshi: 'KXHIGHTDC'  },
 ];
 
+// ─── Date Helpers ────────────────────────────────────────
+function getTodayStr() {
+  return new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+}
+
+function getTomorrowStr() {
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  return d.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+}
+
 // ─── Safe Fetch ──────────────────────────────────────────
 async function safeFetch(url, timeout = 8000) {
   const controller = new AbortController();
@@ -28,10 +40,7 @@ async function safeFetch(url, timeout = 8000) {
   try {
     const res = await fetch(url, {
       signal: controller.signal,
-      headers: {
-        'User-Agent': 'WeatherEdge/1.0',
-        'Accept': 'application/json'
-      }
+      headers: { 'User-Agent': 'WeatherEdge/1.0', 'Accept': 'application/json' }
     });
     clearTimeout(timer);
     if (!res.ok) return null;
@@ -42,15 +51,23 @@ async function safeFetch(url, timeout = 8000) {
   }
 }
 
-// ─── Fetch Open-Meteo Forecast ───────────────────────────
+// ─── Open-Meteo: Today + Tomorrow forecasts ──────────────
 async function getOpenMeteo(city) {
-  const url = `https://api.open-meteo.com/v1/forecast?latitude=${city.lat}&longitude=${city.lon}&daily=temperature_2m_max,temperature_2m_min&temperature_unit=fahrenheit&timezone=auto&forecast_days=2`;
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${city.lat}&longitude=${city.lon}&daily=temperature_2m_max,temperature_2m_min&temperature_unit=fahrenheit&timezone=auto&forecast_days=3`;
   const data = await safeFetch(url);
   if (!data?.daily) return null;
-  return { source: 'Open-Meteo', dates: data.daily.time, highs: data.daily.temperature_2m_max, lows: data.daily.temperature_2m_min };
+  // Return as a map: { "2026-04-05": { high: 57, low: 42 }, "2026-04-06": { ... } }
+  const result = {};
+  for (let i = 0; i < data.daily.time.length; i++) {
+    result[data.daily.time[i]] = {
+      high: data.daily.temperature_2m_max[i],
+      low: data.daily.temperature_2m_min[i]
+    };
+  }
+  return result;
 }
 
-// ─── Fetch NWS Forecast ──────────────────────────────────
+// ─── NWS Forecast: Today + Tomorrow ──────────────────────
 async function getNWSForecast(city) {
   const pts = await safeFetch(`https://api.weather.gov/points/${city.lat},${city.lon}`);
   if (!pts?.properties) return null;
@@ -58,18 +75,18 @@ async function getNWSForecast(city) {
   const fc = await safeFetch(`https://api.weather.gov/gridpoints/${gridId}/${gridX},${gridY}/forecast`);
   if (!fc?.properties?.periods) return null;
 
-  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
-  let high = null, low = null;
+  // Build a map: { "2026-04-05": { high: 57, low: 42 }, ... }
+  const result = {};
   for (const p of fc.properties.periods) {
-    if (p.startTime.slice(0, 10) === today) {
-      if (p.isDaytime) high = p.temperature;
-      else low = p.temperature;
-    }
+    const pDate = p.startTime.slice(0, 10);
+    if (!result[pDate]) result[pDate] = { high: null, low: null };
+    if (p.isDaytime) result[pDate].high = p.temperature;
+    else result[pDate].low = p.temperature;
   }
-  return { source: 'NWS', high, low };
+  return result;
 }
 
-// ─── Fetch NWS Current Observation ───────────────────────
+// ─── NWS Current Observation ─────────────────────────────
 async function getNWSObservation(city) {
   const data = await safeFetch(`https://api.weather.gov/stations/${city.nws}/observations/latest`);
   if (!data?.properties?.temperature?.value && data?.properties?.temperature?.value !== 0) return null;
@@ -80,42 +97,55 @@ async function getNWSObservation(city) {
   };
 }
 
-// ─── Fetch Kalshi Markets ────────────────────────────────
+// ─── Kalshi: Only return today or tomorrow's market ──────
 async function getKalshi(seriesTicker) {
-  const url = `https://api.elections.kalshi.com/trade-api/v2/events?series_ticker=${seriesTicker}&status=open&with_nested_markets=true&limit=3`;
+  const url = `https://api.elections.kalshi.com/trade-api/v2/events?series_ticker=${seriesTicker}&status=open&with_nested_markets=true&limit=5`;
   const data = await safeFetch(url);
   if (!data?.events?.length) return null;
 
-  // Get the most recent open event (today's market)
-  const ev = data.events[0];
-  if (!ev.markets?.length) return null;
+  const today = getTodayStr();
+  const tomorrow = getTomorrowStr();
 
-  const markets = ev.markets.map(m => ({
-    ticker: m.ticker,
-    subtitle: m.yes_sub_title || m.subtitle || '',
-    yesAsk: m.yes_ask_dollars || m.yes_ask,
-    lastPrice: m.last_price_dollars || m.last_price,
-    volume: m.volume_fp || m.volume || 0
-  })).filter(m => m.subtitle);
+  // Look through events and find one for today or tomorrow
+  for (const ev of data.events) {
+    if (!ev.markets?.length) continue;
 
-  // Extract the market date from the event title or close_time
-  const closeTime = ev.markets?.[0]?.close_time || '';
-  const marketDate = closeTime ? closeTime.slice(0, 10) : '';
+    // Get the market date from close_time of first market
+    const closeTime = ev.markets[0]?.close_time || '';
+    const marketDate = closeTime.slice(0, 10);
 
-  return { eventTicker: ev.event_ticker, title: ev.title || '', subtitle: ev.sub_title || '', markets, marketDate };
+    // ONLY allow today or tomorrow — skip anything else
+    if (marketDate !== today && marketDate !== tomorrow) continue;
+
+    const markets = ev.markets.map(m => ({
+      ticker: m.ticker,
+      subtitle: m.yes_sub_title || m.subtitle || '',
+      yesAsk: m.yes_ask_dollars || m.yes_ask,
+      lastPrice: m.last_price_dollars || m.last_price,
+      volume: m.volume_fp || m.volume || 0
+    })).filter(m => m.subtitle);
+
+    return {
+      eventTicker: ev.event_ticker,
+      title: ev.title || '',
+      subtitle: ev.sub_title || '',
+      markets,
+      marketDate
+    };
+  }
+
+  return null; // No today/tomorrow market found
 }
 
 // ─── Build Signal ────────────────────────────────────────
 function buildSignal(consensusHigh, kalshiData) {
   if (!kalshiData?.markets?.length || consensusHigh === null) return null;
 
-  // Find market favorite (highest priced bracket)
   const sorted = [...kalshiData.markets].sort((a, b) => {
     return (parseFloat(b.lastPrice) || parseFloat(b.yesAsk) || 0) - (parseFloat(a.lastPrice) || parseFloat(a.yesAsk) || 0);
   });
   const fav = sorted[0];
 
-  // Find bracket matching consensus
   let match = null;
   for (const m of kalshiData.markets) {
     const s = m.subtitle.toLowerCase();
@@ -141,34 +171,42 @@ function buildSignal(consensusHigh, kalshiData) {
 
 // ─── Main Handler ────────────────────────────────────────
 export default async function handler(req, res) {
-  // CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET');
   res.setHeader('Cache-Control', 's-maxage=120, stale-while-revalidate=300');
 
   try {
-    // Fetch all cities in parallel — each city fetches 3 sources at once
     const results = await Promise.all(CITIES.map(async (city) => {
-      const [openMeteo, nwsForecast, observation, kalshi] = await Promise.all([
+      const [openMeteoMap, nwsForecastMap, observation, kalshi] = await Promise.all([
         getOpenMeteo(city),
         getNWSForecast(city),
         getNWSObservation(city),
         getKalshi(city.kalshi)
       ]);
 
-      // Build forecasts array
+      // Determine which date to pull forecasts for — match the Kalshi market date
+      // If no Kalshi market, default to today
+      const targetDate = kalshi?.marketDate || getTodayStr();
+
+      // Build forecasts for the TARGET date (not always today)
       const forecasts = [];
-      const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
 
-      if (openMeteo?.dates) {
-        const idx = openMeteo.dates.indexOf(today);
-        if (idx !== -1) forecasts.push({ source: 'Open-Meteo', high: openMeteo.highs[idx], low: openMeteo.lows[idx] });
+      if (openMeteoMap?.[targetDate]) {
+        forecasts.push({
+          source: 'Open-Meteo',
+          high: openMeteoMap[targetDate].high,
+          low: openMeteoMap[targetDate].low
+        });
       }
-      if (nwsForecast?.high !== null || nwsForecast?.low !== null) {
-        forecasts.push({ source: 'NWS', high: nwsForecast?.high, low: nwsForecast?.low });
+      if (nwsForecastMap?.[targetDate]) {
+        forecasts.push({
+          source: 'NWS',
+          high: nwsForecastMap[targetDate].high,
+          low: nwsForecastMap[targetDate].low
+        });
       }
 
-      // Consensus
+      // Consensus for the target date
       const highs = forecasts.filter(f => f.high != null).map(f => f.high);
       const lows = forecasts.filter(f => f.low != null).map(f => f.low);
       const consensusHigh = highs.length ? Math.round(highs.reduce((a, b) => a + b, 0) / highs.length * 10) / 10 : null;
@@ -180,6 +218,7 @@ export default async function handler(req, res) {
         currentTemp: observation?.tempF || null,
         currentDesc: observation?.desc || '',
         forecasts,
+        forecastDate: targetDate,
         consensus: { high: consensusHigh, low: consensusLow },
         kalshi: kalshi,
         signal: buildSignal(consensusHigh, kalshi),
