@@ -106,15 +106,25 @@ async function getKalshi(seriesTicker) {
   const today = getTodayStr();
   const tomorrow = getTomorrowStr();
 
-  // Look through events and find one for today or tomorrow
+  // Collect valid events for today and tomorrow
+  let todayEvent = null;
+  let tomorrowEvent = null;
+
   for (const ev of data.events) {
     if (!ev.markets?.length) continue;
 
-    // Get the market date from close_time of first market
-    const closeTime = ev.markets[0]?.close_time || '';
-    const marketDate = closeTime.slice(0, 10);
+    // Extract the ACTUAL market date from the event ticker
+    // Tickers look like: KXHIGHCHI-26APR05 → 2026-04-05
+    const tickerMatch = ev.event_ticker?.match(/(\d{2})([A-Z]{3})(\d{2})$/);
+    let marketDate = '';
+    if (tickerMatch) {
+      const months = { JAN:'01',FEB:'02',MAR:'03',APR:'04',MAY:'05',JUN:'06',JUL:'07',AUG:'08',SEP:'09',OCT:'10',NOV:'11',DEC:'12' };
+      const yr = '20' + tickerMatch[1];
+      const mo = months[tickerMatch[2]] || '01';
+      const dy = tickerMatch[3];
+      marketDate = `${yr}-${mo}-${dy}`;
+    }
 
-    // ONLY allow today or tomorrow — skip anything else
     if (marketDate !== today && marketDate !== tomorrow) continue;
 
     const markets = ev.markets.map(m => ({
@@ -125,16 +135,20 @@ async function getKalshi(seriesTicker) {
       volume: m.volume_fp || m.volume || 0
     })).filter(m => m.subtitle);
 
-    return {
+    const result = {
       eventTicker: ev.event_ticker,
       title: ev.title || '',
       subtitle: ev.sub_title || '',
       markets,
       marketDate
     };
+
+    if (marketDate === today) todayEvent = result;
+    if (marketDate === tomorrow) tomorrowEvent = result;
   }
 
-  return null; // No today/tomorrow market found
+  // Prefer today's market, fall back to tomorrow's
+  return todayEvent || tomorrowEvent || null;
 }
 
 // ─── Build Signal ────────────────────────────────────────
