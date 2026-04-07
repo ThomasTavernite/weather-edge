@@ -1,7 +1,18 @@
 {
   "functions": {
-    "api/overview.js": {
-      "maxDuration": 60
+    "api/overview.js": { "maxDuration": 60 },
+    "api/snapshot.js": { "maxDuration": 60 },
+    "api/check.js": { "maxDuration": 60 },
+    "api/accuracy.js": { "maxDuration": 10 }
+  },
+  "crons": [
+    {
+      "path": "/api/snapshot",
+      "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/check",
+      "schedule": "0 16 * * *"
     }
-  }
+  ]
 }

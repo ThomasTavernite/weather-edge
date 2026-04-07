@@ -95,6 +95,19 @@
   .trust-card .trust-desc { font-size: 12px; color: #64748b; line-height: 1.5; }
   .trust-card a { color: #3b82f6; text-decoration: none; font-size: 11px; }
   .trust-card a:hover { text-decoration: underline; }
+  .accuracy-section { margin-top: 32px; }
+  .stat-box { background: #0a0e17; border: 1px solid #1e293b; border-radius: 10px; padding: 16px 20px; text-align: center; min-width: 120px; }
+  .stat-box .stat-val { font-size: 28px; font-weight: 700; color: #3b82f6; }
+  .stat-box .stat-val.green { color: #22c55e; }
+  .stat-box .stat-label { font-size: 11px; color: #64748b; margin-top: 4px; }
+  .day-row { background: #0a0e17; border: 1px solid #1e293b; border-radius: 8px; padding: 12px 16px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
+  .day-row .day-date { font-size: 14px; font-weight: 600; color: #e1e4ea; }
+  .day-row .day-score { font-size: 13px; font-weight: 600; }
+  .day-row .day-score.good { color: #22c55e; }
+  .day-row .day-score.ok { color: #f59e0b; }
+  .day-row .day-score.bad { color: #ef4444; }
+  .no-data-msg { font-size: 13px; color: #475569; text-align: center; padding: 20px; }
+
   .disclaimer { background: #111827; border: 1px solid #1e293b; border-radius: 12px; padding: 20px 24px; margin-top: 32px; }
   .disclaimer h3 { font-size: 14px; color: #94a3b8; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
   .disclaimer p { font-size: 12px; color: #475569; line-height: 1.7; margin-bottom: 8px; }
@@ -138,6 +151,15 @@
       <p>Pulling forecasts from Open-Meteo, prices from Kalshi</p>
     </div>
   </div>
+  <div class="accuracy-section" id="accuracySection" style="display:none">
+    <div class="trust-section" style="margin-top:0;margin-bottom:0">
+      <h3>📊 Track Record — Verified Accuracy</h3>
+      <p style="font-size:12px;color:#64748b;margin-bottom:16px">Every day, we snapshot our forecast consensus before the market settles. The next morning, we compare it to the official NWS result. This data is logged automatically — no cherry-picking, no editing.</p>
+      <div id="accuracyStats" style="display:flex;gap:24px;flex-wrap:wrap;margin-bottom:20px"></div>
+      <div id="accuracyHistory"></div>
+    </div>
+  </div>
+
   <div class="trust-section">
     <h3>🔍 Why You Can Trust This Data</h3>
     <div class="trust-grid">
@@ -339,7 +361,48 @@ setInterval(function() {
 }, 1000);
 
 // Start
+// Load accuracy data
+function loadAccuracy() {
+  fetch('/api/accuracy')
+    .then(function(res) { return res.json(); })
+    .then(function(data) {
+      if (!data.hasData) {
+        document.getElementById('accuracySection').style.display = 'block';
+        document.getElementById('accuracyStats').innerHTML = '';
+        document.getElementById('accuracyHistory').innerHTML = '<div class="no-data-msg">📈 Accuracy tracking starts tonight. Our first verified results will appear tomorrow morning after the NWS publishes the Daily Climate Report. Check back then.</div>';
+        return;
+      }
+
+      document.getElementById('accuracySection').style.display = 'block';
+      var s = data.stats;
+
+      document.getElementById('accuracyStats').innerHTML =
+        '<div class="stat-box"><div class="stat-val green">' + s.overallAccuracy + '%</div><div class="stat-label">Forecast Accuracy</div></div>' +
+        '<div class="stat-box"><div class="stat-val">' + s.totalPredictions + '</div><div class="stat-label">Total Predictions</div></div>' +
+        '<div class="stat-box"><div class="stat-val">' + s.daysTracked + '</div><div class="stat-label">Days Tracked</div></div>' +
+        '<div class="stat-box"><div class="stat-val">' + s.avgForecastDiff + '°</div><div class="stat-label">Avg Forecast Diff</div></div>';
+
+      var histHtml = '<h4 style="font-size:13px;color:#94a3b8;margin-bottom:12px">RECENT DAYS</h4>';
+      if (data.recentDays.length === 0) {
+        histHtml += '<div class="no-data-msg">Results will appear after the first day is checked.</div>';
+      }
+      for (var i = 0; i < data.recentDays.length; i++) {
+        var day = data.recentDays[i];
+        var d = new Date(day.date + 'T12:00:00');
+        var dateLabel = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+        var scoreClass = day.accuracy >= 60 ? 'good' : (day.accuracy >= 40 ? 'ok' : 'bad');
+        var scoreText = day.accuracy !== null ? day.accuracy + '% (' + day.forecastWins + '/' + day.total + ' correct)' : 'Pending';
+        histHtml += '<div class="day-row"><span class="day-date">' + dateLabel + '</span><span class="day-score ' + scoreClass + '">' + scoreText + '</span></div>';
+      }
+      document.getElementById('accuracyHistory').innerHTML = histHtml;
+    })
+    .catch(function() {
+      // Silently fail — accuracy section just won't show
+    });
+}
+
 loadOverview();
+loadAccuracy();
 setInterval(loadOverview, 120000);
 </script>
 </body>
