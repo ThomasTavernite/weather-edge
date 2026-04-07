@@ -258,6 +258,23 @@ function loadOverview() {
         html += '<div class="section-note">These cities have forecast data but no matching Kalshi market was found for today or tomorrow. The market may have closed or hasn\'t opened yet.</div>';
         html += '<div class="city-grid">' + noData.map(renderCard).join('') + '</div>';
       }
+      // Tomorrow's opportunities section
+      var tomorrowCities = ALL_DATA.filter(function(c) { return c.tomorrow && c.tomorrow.signal; });
+      if (tomorrowCities.length > 0) {
+        var tomDivergences = tomorrowCities.filter(function(c) { return c.tomorrow.signal.type === 'DIVERGENCE'; });
+        var tomAligned = tomorrowCities.filter(function(c) { return c.tomorrow.signal.type === 'ALIGNED'; });
+
+        html += '<div class="section-label" style="margin-top:24px">🔮 TOMORROW\'S EARLY OPPORTUNITIES — Get Ahead of the Market</div>';
+        html += '<div class="section-note">Tomorrow\'s markets are already open on Kalshi. These are early prices — the biggest edges are found here before other traders catch on.</div>';
+
+        if (tomDivergences.length > 0) {
+          html += '<div class="city-grid">' + tomDivergences.map(function(c) { return renderTomorrowCard(c); }).join('') + '</div>';
+        }
+        if (tomAligned.length > 0) {
+          html += '<div class="city-grid">' + tomAligned.map(function(c) { return renderTomorrowCard(c); }).join('') + '</div>';
+        }
+      }
+
       if (!html) html = '<div class="loading-container"><h2>No active markets right now</h2><p>Check back tomorrow morning.</p></div>';
       document.getElementById('mainContent').innerHTML = html;
     })
@@ -343,6 +360,80 @@ function openCity(id) {
     html += '<p style="color:#64748b;margin-top:16px">No active Kalshi market found for today or tomorrow.</p>';
     html += '<a href="' + url + '" target="_blank" class="kalshi-link" style="background:#334155">View on Kalshi →</a>';
   }
+  document.getElementById('modalBody').innerHTML = html;
+}
+
+function renderTomorrowCard(c) {
+  var t = c.tomorrow;
+  var url = KALSHI_URLS[c.id] || 'https://kalshi.com/category/climate';
+  var mDate = formatMarketDate(t.forecastDate);
+
+  var badge = '';
+  var detail = '';
+  if (t.signal.type === 'DIVERGENCE') {
+    badge = '<span class="signal-badge divergence">⚡ DIVERGENCE</span>';
+    detail = 'Forecasts → <strong>' + t.signal.consensusBracket + '</strong> (' + formatPrice(t.signal.consensusBracketPrice) + ') · Market favors <strong>' + t.signal.marketFavorite + '</strong> (' + formatPrice(t.signal.marketFavoritePrice) + ')';
+  } else {
+    badge = '<span class="signal-badge aligned">✓ ALIGNED</span>';
+    detail = 'Forecasts & market agree: <strong>' + t.signal.marketFavorite + '</strong> at ' + formatPrice(t.signal.marketFavoritePrice);
+  }
+
+  return '<div class="city-card" onclick="openTomorrow(\'' + c.id + '\')" style="border-color:#2d1b69">' +
+    '<div class="card-top"><div><div class="city-name">' + c.name + '</div>' + badge + '</div>' +
+    '<div style="text-align:right"><div style="font-size:13px;color:#c084fc;font-weight:600">Tomorrow</div></div></div>' +
+    '<div class="market-date-badge tomorrow">📅 ' + mDate.relative + ' — ' + mDate.display + '</div>' +
+    '<div class="forecast-row">' + (t.forecasts || []).map(function(f) {
+      return '<div class="forecast-chip"><span class="src">' + f.source + '</span><span class="val">H: ' + (f.high != null ? f.high + '°' : '--') + '</span></div>';
+    }).join('') +
+    (t.consensus && t.consensus.high != null ? '<div class="forecast-chip consensus"><span class="src">Consensus</span><span class="val">' + t.consensus.high + '°F</span></div>' : '') +
+    '</div>' +
+    (detail ? '<div class="signal-detail">' + detail + '</div>' : '') +
+    '<a href="' + url + '" target="_blank" class="kalshi-link" onclick="event.stopPropagation()" style="background:#7c3aed">Trade Tomorrow\'s Market →</a></div>';
+}
+
+function openTomorrow(id) {
+  var c = null;
+  for (var i = 0; i < ALL_DATA.length; i++) { if (ALL_DATA[i].id === id) { c = ALL_DATA[i]; break; } }
+  if (!c || !c.tomorrow) return;
+
+  var t = c.tomorrow;
+  var url = KALSHI_URLS[id] || 'https://kalshi.com/category/climate';
+  document.getElementById('modal').classList.add('active');
+  document.getElementById('modalTitle').textContent = c.name + ' — Tomorrow';
+
+  var html = '';
+  var mDate = formatMarketDate(t.forecastDate);
+
+  html += '<div class="modal-date-banner" style="border-color:#7c3aed"><span class="date-main">📅 ' + mDate.display + '</span><span class="date-relative tomorrow">' + mDate.relative + '</span></div>';
+  html += '<div class="modal-note">🔮 This is <strong style="color:#c084fc">tomorrow\'s market</strong> — already open for trading on Kalshi. Early prices often have the biggest edges before other traders adjust.</div>';
+
+  if (c.currentTemp != null) {
+    html += '<div class="consensus-row"><span class="consensus-label">Current Temp Right Now — ' + (c.currentDesc || 'NWS Station') + '</span><span class="consensus-val">' + c.currentTemp + '°F</span></div>';
+  }
+
+  var forecastLabel = 'for ' + mDate.relative + ' (' + mDate.display + ')';
+  html += '<div class="section-label" style="margin-top:0">Forecasts ' + forecastLabel + '</div>';
+  html += '<div class="forecast-row" style="margin-bottom:20px">';
+  (t.forecasts || []).forEach(function(f) {
+    html += '<div class="forecast-chip"><span class="src">' + f.source + '</span><span class="val">H: ' + (f.high != null ? f.high + '°' : '--') + '  L: ' + (f.low != null ? f.low + '°' : '--') + '</span></div>';
+  });
+  if (t.consensus && t.consensus.high != null) {
+    html += '<div class="forecast-chip consensus"><span class="src">Consensus</span><span class="val">H: ' + t.consensus.high + '°  L: ' + (t.consensus.low || '--') + '°</span></div>';
+  }
+  html += '</div>';
+
+  if (t.kalshi && t.kalshi.markets && t.kalshi.markets.length) {
+    html += '<div class="section-label">Kalshi Market — ' + (t.kalshi.title || 'High Temp') + '</div>';
+    html += '<table class="bracket-table"><thead><tr><th>Bracket</th><th>Price</th><th>Volume</th></tr></thead><tbody>';
+    t.kalshi.markets.forEach(function(m) {
+      var price = parseFloat(m.lastPrice) || parseFloat(m.yesAsk) || 0;
+      var isMatch = t.signal && t.signal.consensusBracket === m.subtitle;
+      html += '<tr class="' + (isMatch ? 'consensus-match' : '') + '"><td>' + m.subtitle + (isMatch ? ' ← Forecast' : '') + '</td><td class="price-cell">' + formatPrice(price) + '</td><td style="color:#64748b">' + parseInt(m.volume || 0).toLocaleString() + '</td></tr>';
+    });
+    html += '</tbody></table>';
+    html += '<a href="' + url + '" target="_blank" class="kalshi-link" style="background:#7c3aed">Trade Tomorrow\'s Market on Kalshi →</a>';
+  }
+
   document.getElementById('modalBody').innerHTML = html;
 }
 
