@@ -322,7 +322,7 @@ function openCity(id) {
   var c = null;
   for (var i = 0; i < ALL_DATA.length; i++) { if (ALL_DATA[i].id === id) { c = ALL_DATA[i]; break; } }
   if (!c) return;
-  var url = KALSHI_URLS[id] || 'https://kalshi.com/category/climate';
+  var url = getKalshiUrl(id, c.kalshi);
   document.getElementById('modal').classList.add('active');
   document.getElementById('modalTitle').textContent = c.name;
   var html = '';
@@ -365,7 +365,7 @@ function openCity(id) {
 
 function renderTomorrowCard(c) {
   var t = c.tomorrow;
-  var url = KALSHI_URLS[c.id] || 'https://kalshi.com/category/climate';
+  var url = getKalshiUrl(c.id, t.kalshi);
   var mDate = formatMarketDate(t.forecastDate);
 
   var badge = '';
@@ -397,7 +397,7 @@ function openTomorrow(id) {
   if (!c || !c.tomorrow) return;
 
   var t = c.tomorrow;
-  var url = KALSHI_URLS[id] || 'https://kalshi.com/category/climate';
+  var url = getKalshiUrl(id, t.kalshi);
   document.getElementById('modal').classList.add('active');
   document.getElementById('modalTitle').textContent = c.name + ' — Tomorrow';
 
