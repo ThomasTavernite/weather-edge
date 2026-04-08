@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════
-//  WeatherBid — api/overview.js (DUAL MARKET version)
+//  WeatherQuant — api/overview.js (DUAL MARKET version)
 //  Shows today's active market AND tomorrow's early opportunities
 //  when both are available on Kalshi
 // ═══════════════════════════════════════════════════════════
@@ -38,7 +38,7 @@ async function safeFetch(url, timeout) {
   try {
     var res = await fetch(url, {
       signal: controller.signal,
-      headers: { 'User-Agent': 'WeatherBid/1.0', 'Accept': 'application/json' }
+      headers: { 'User-Agent': 'WeatherQuant/1.0', 'Accept': 'application/json' }
     });
     clearTimeout(timer);
     if (!res.ok) return null;
