@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════
-//  WeatherQuant — api/accuracy.js
+//  WeatherBid — api/accuracy.js
 //  Returns accuracy stats and recent results for the frontend
 // ═══════════════════════════════════════════════════════════
 
@@ -55,6 +55,12 @@ export default async function handler(req, res) {
       overallAccuracy = Math.round(stats.forecastCorrect / stats.totalChecked * 100);
     }
 
+    // Calculate divergence win rate
+    var divergenceWinRate = null;
+    if (stats && stats.divergenceTotal && stats.divergenceTotal > 0) {
+      divergenceWinRate = Math.round(stats.divergenceForecastWins / stats.divergenceTotal * 100);
+    }
+
     res.status(200).json({
       hasData: stats !== null && stats.totalChecked > 0,
       stats: stats ? {
@@ -63,7 +69,10 @@ export default async function handler(req, res) {
         marketCorrect: stats.marketCorrect,
         overallAccuracy: overallAccuracy,
         avgForecastDiff: stats.avgForecastDiff,
-        daysTracked: stats.daysTracked
+        daysTracked: stats.daysTracked,
+        divergenceTotal: stats.divergenceTotal || 0,
+        divergenceForecastWins: stats.divergenceForecastWins || 0,
+        divergenceWinRate: divergenceWinRate
       } : null,
       recentDays: recentDays,
       totalDaysRecorded: dates.length

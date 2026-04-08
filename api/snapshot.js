@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════
-//  WeatherQuant — api/snapshot.js
+//  WeatherBid — api/snapshot.js
 //  Runs daily via Vercel Cron at 10 PM ET
 //  Saves today's forecast consensus + Kalshi market favorite
 //  for each city so we can check accuracy tomorrow
@@ -42,7 +42,7 @@ async function safeFetch(url, timeout) {
   try {
     var res = await fetch(url, {
       signal: controller.signal,
-      headers: { 'User-Agent': 'WeatherQuant/1.0', 'Accept': 'application/json' }
+      headers: { 'User-Agent': 'WeatherBid/1.0', 'Accept': 'application/json' }
     });
     clearTimeout(timer);
     if (!res.ok) return null;
@@ -139,6 +139,21 @@ export default async function handler(req, res) {
         forecastHigh = openMeteo[targetDate].high;
       }
 
+      // Determine if this is a divergence or aligned
+      var signalType = null;
+      if (forecastHigh !== null && kalshi) {
+        // Check if forecast falls in the market favorite bracket
+        var favBracket = kalshi.marketFavorite.toLowerCase();
+        var range = favBracket.match(/(\d+)°?\s*to\s*(\d+)/);
+        var below = favBracket.match(/(\d+)°?\s*or\s*below/);
+        var above = favBracket.match(/(\d+)°?\s*or\s*above/);
+        var forecastInFav = false;
+        if (range && forecastHigh >= parseInt(range[1]) && forecastHigh <= parseInt(range[2]) + 0.9) forecastInFav = true;
+        if (below && forecastHigh <= parseInt(below[1])) forecastInFav = true;
+        if (above && forecastHigh >= parseInt(above[1])) forecastInFav = true;
+        signalType = forecastInFav ? 'ALIGNED' : 'DIVERGENCE';
+      }
+
       var snapshot = {
         cityId: city.id,
         cityName: city.name,
@@ -147,9 +162,10 @@ export default async function handler(req, res) {
         marketFavorite: kalshi ? kalshi.marketFavorite : null,
         marketFavoritePrice: kalshi ? kalshi.marketFavoritePrice : null,
         eventTicker: kalshi ? kalshi.eventTicker : null,
+        signalType: signalType,
         snapshotTime: new Date().toISOString(),
-        actualHigh: null,        // filled in by check.js
-        result: null             // filled in by check.js: 'forecast_correct', 'market_correct', 'both_correct', 'both_wrong'
+        actualHigh: null,
+        result: null
       };
 
       snapshots.push(snapshot);
@@ -160,15 +176,18 @@ export default async function handler(req, res) {
 
     // Save to KV: key = "snapshot:2026-04-06"
     var snapshotDate = snapshots[0] ? snapshots[0].targetDate : today;
-    await kv.set('snapshot:' + snapshotDate, JSON.stringify(snapshots));
+    await kv.set('snapshot:' + snapshotDate, snapshots);
 
     // Also maintain a list of all snapshot dates
     var dateList = await kv.get('snapshot_dates');
-    var dates = dateList ? JSON.parse(dateList) : [];
+    var dates = [];
+    if (dateList) {
+      dates = typeof dateList === 'string' ? JSON.parse(dateList) : dateList;
+    }
     if (dates.indexOf(snapshotDate) === -1) {
       dates.push(snapshotDate);
       dates.sort();
-      await kv.set('snapshot_dates', JSON.stringify(dates));
+      await kv.set('snapshot_dates', dates);
     }
 
     res.status(200).json({

@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>WeatherQuant — Forecast-Powered Market Signals</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect fill='%230a0e17' width='100' height='100' rx='12'/%3E%3Cpolyline points='10,60 25,60 35,30 45,70 55,45 65,55 75,35 90,50' fill='none' stroke='%2300e5ff' stroke-width='5' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpolyline points='10,60 25,60 35,30 45,70 55,45 65,55 75,35 90,50' fill='none' stroke='%233b82f6' stroke-width='3' stroke-linecap='round' stroke-linejoin='round' opacity='0.6'/%3E%3C/svg%3E">
+<title>WeatherBid — Forecast-Powered Market Signals</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cstyle%3E%40keyframes flash%7B0%25,100%25%7Bopacity:1%7D50%25%7Bopacity:0.3%7D%7D .bolt%7Banimation:flash 2s infinite%7D%3C/style%3E%3Ctext y='.85em' font-size='80'%3E🌩%3C/text%3E%3Ctext class='bolt' y='.85em' font-size='80' style='opacity:0.9'%3E⚡%3C/text%3E%3C/svg%3E">
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0a0e17; color: #e1e4ea; min-height: 100vh; }
@@ -86,6 +86,15 @@
   .signal-example { background: #0a0e17; border: 1px solid #1e293b; border-radius: 8px; padding: 14px 16px; margin-top: 12px; font-size: 13px; color: #94a3b8; line-height: 1.7; }
   .signal-example strong { color: #f59e0b; }
   .signal-example .green { color: #22c55e; }
+  .trust-section { background: #111827; border: 1px solid #1e293b; border-radius: 12px; padding: 24px; margin-top: 32px; }
+  .trust-section h3 { font-size: 15px; color: #fff; margin-bottom: 16px; }
+  .trust-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+  .trust-card { background: #0a0e17; border: 1px solid #1e293b; border-radius: 10px; padding: 16px; }
+  .trust-card .trust-icon { font-size: 20px; margin-bottom: 8px; }
+  .trust-card .trust-title { font-size: 13px; font-weight: 600; color: #e1e4ea; margin-bottom: 4px; }
+  .trust-card .trust-desc { font-size: 12px; color: #64748b; line-height: 1.5; }
+  .trust-card a { color: #3b82f6; text-decoration: none; font-size: 11px; }
+  .trust-card a:hover { text-decoration: underline; }
   .accuracy-section { margin-top: 32px; }
   .stat-box { background: #0a0e17; border: 1px solid #1e293b; border-radius: 10px; padding: 16px 20px; text-align: center; min-width: 120px; }
   .stat-box .stat-val { font-size: 28px; font-weight: 700; color: #3b82f6; }
@@ -98,15 +107,7 @@
   .day-row .day-score.ok { color: #f59e0b; }
   .day-row .day-score.bad { color: #ef4444; }
   .no-data-msg { font-size: 13px; color: #475569; text-align: center; padding: 20px; }
-  .trust-section { background: #111827; border: 1px solid #1e293b; border-radius: 12px; padding: 24px; margin-top: 32px; }
-  .trust-section h3 { font-size: 15px; color: #fff; margin-bottom: 16px; }
-  .trust-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
-  .trust-card { background: #0a0e17; border: 1px solid #1e293b; border-radius: 10px; padding: 16px; }
-  .trust-card .trust-icon { font-size: 20px; margin-bottom: 8px; }
-  .trust-card .trust-title { font-size: 13px; font-weight: 600; color: #e1e4ea; margin-bottom: 4px; }
-  .trust-card .trust-desc { font-size: 12px; color: #64748b; line-height: 1.5; }
-  .trust-card a { color: #3b82f6; text-decoration: none; font-size: 11px; }
-  .trust-card a:hover { text-decoration: underline; }
+
   .disclaimer { background: #111827; border: 1px solid #1e293b; border-radius: 12px; padding: 20px 24px; margin-top: 32px; }
   .disclaimer h3 { font-size: 14px; color: #94a3b8; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
   .disclaimer p { font-size: 12px; color: #475569; line-height: 1.7; margin-bottom: 8px; }
@@ -119,7 +120,7 @@
 <body>
 <div class="header">
   <div class="logo">
-    <h1>Weather<span>Quant</span></h1>
+    <h1>Weather<span>Bid</span></h1>
     <div class="logo-sub">Forecast-Powered Market Signals</div>
   </div>
   <div class="header-right">
@@ -136,7 +137,7 @@
       <button class="how-toggle" onclick="document.getElementById('howContent').classList.toggle('open');this.textContent=document.getElementById('howContent').classList.contains('open')?'Hide Guide ▴':'Show Guide ▾'">Show Guide ▾</button>
     </div>
     <div class="how-content" id="howContent">
-      <div class="how-step"><div class="step-num">1</div><div class="step-text"><h3>We pull forecasts from Open-Meteo</h3><p>Every few minutes, WeatherQuant checks Open-Meteo — an open-source service aggregating multiple global weather models (GFS, ECMWF, and more) — for high/low temperature forecasts for each city.</p></div></div>
+      <div class="how-step"><div class="step-num">1</div><div class="step-text"><h3>We pull forecasts from Open-Meteo</h3><p>Every few minutes, WeatherBid checks Open-Meteo — an open-source service aggregating multiple global weather models (GFS, ECMWF, and more) — for high/low temperature forecasts for each city.</p></div></div>
       <div class="how-step"><div class="step-num">2</div><div class="step-text"><h3>We compare forecasts against Kalshi's market prices</h3><p>Kalshi lists temperature markets with brackets like "72° to 73°." Each bracket has a price — buy "Yes" on a bracket you believe in, and if you're right, each contract pays $1.00. For example, if you spot an underpriced bracket at 10¢ and buy 100 contracts for $10, and it hits — you get $100 back. That's a $90 profit from a $10 position. Scale it up: $100 in could become $1,000 out.</p></div></div>
       <div class="how-step"><div class="step-num">3</div><div class="step-text"><h3>The "← Forecast" tag shows where forecasts point</h3><p>In the bracket table, the row tagged <strong style="color:#3b82f6">← Forecast</strong> is the bracket the forecast temperature falls into.</p></div></div>
       <div class="how-step"><div class="step-num">4</div><div class="step-text"><h3>Signals tell you if the market agrees or disagrees</h3><div class="signal-example"><span class="green">✓ ALIGNED</span> — Forecast and the market's top bracket match. No edge.<br><br><strong>⚡ DIVERGENCE</strong> — Forecast points to a different bracket than the market favorite. Potential opportunity — someone is wrong.</div></div></div>
@@ -158,6 +159,7 @@
       <div id="accuracyHistory"></div>
     </div>
   </div>
+
   <div class="trust-section">
     <h3>🔍 Why You Can Trust This Data</h3>
     <div class="trust-grid">
@@ -169,9 +171,9 @@
   </div>
   <div class="disclaimer">
     <h3>Disclaimer</h3>
-    <p><strong style="color:#94a3b8">WeatherQuant is not financial advice.</strong> The information provided is for informational and educational purposes only. Nothing constitutes a recommendation or offer to buy or sell any event contracts or financial instruments.</p>
+    <p><strong style="color:#94a3b8">WeatherBid is not financial advice.</strong> The information provided is for informational and educational purposes only. Nothing constitutes a recommendation or offer to buy or sell any event contracts or financial instruments.</p>
     <p>Trading on Kalshi involves substantial risk of loss. You could lose some or all of your capital. Past performance is not indicative of future results.</p>
-    <p>WeatherQuant is not affiliated with Kalshi, Inc. or the National Weather Service. Not insured by the FDIC or any government agency. <strong style="color:#94a3b8">Trade at your own risk.</strong></p>
+    <p>WeatherBid is not affiliated with Kalshi, Inc. or the National Weather Service. Not insured by the FDIC or any government agency. <strong style="color:#94a3b8">Trade at your own risk.</strong></p>
   </div>
 </div>
 <div class="modal-overlay" id="modal">
@@ -181,12 +183,11 @@
   </div>
 </div>
 <div class="footer">
-  <p>WeatherQuant is not financial advice. Markets settle via <a href="https://help.kalshi.com/markets/popular-markets/weather-markets" target="_blank">NWS Daily Climate Reports</a>.</p>
+  <p>WeatherBid is not financial advice. Markets settle via <a href="https://help.kalshi.com/markets/popular-markets/weather-markets" target="_blank">NWS Daily Climate Reports</a>.</p>
   <p style="margin-top:8px">Trade on <a href="https://kalshi.com/category/climate" target="_blank">Kalshi</a> — CFTC regulated prediction markets.</p>
 </div>
 <script>
-// ─── Kalshi URLs + Helper Functions ──────────────────────
-var KALSHI_BASE_URLS = {
+var KALSHI_URLS = {
   nyc:'https://kalshi.com/markets/kxhighny/highest-temperature-in-nyc',
   chi:'https://kalshi.com/markets/kxhighchi/highest-temperature-in-chicago',
   mia:'https://kalshi.com/markets/kxhighmia/highest-temperature-in-miami',
@@ -201,15 +202,6 @@ var KALSHI_BASE_URLS = {
   nola:'https://kalshi.com/markets/kxhightnola/new-orleans-max-temp-daily',
   dc:'https://kalshi.com/markets/kxhightdc/washington-dc-daily-max-temp'
 };
-
-function getKalshiUrl(cityId, kalshiData) {
-  var base = KALSHI_BASE_URLS[cityId] || 'https://kalshi.com/category/climate';
-  if (kalshiData && kalshiData.eventTicker) {
-    return base + '/' + kalshiData.eventTicker.toLowerCase();
-  }
-  return base;
-}
-
 var ALL_DATA = [];
 var nextRefreshIn = 120;
 
@@ -234,7 +226,6 @@ function formatMarketDate(dateStr) {
   return { display: display, relative: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }), relativeClass: 'other' };
 }
 
-// ─── Load Overview ───────────────────────────────────────
 function loadOverview() {
   var dot = document.getElementById('statusDot');
   var txt = document.getElementById('statusText');
@@ -267,24 +258,6 @@ function loadOverview() {
         html += '<div class="section-note">These cities have forecast data but no matching Kalshi market was found for today or tomorrow. The market may have closed or hasn\'t opened yet.</div>';
         html += '<div class="city-grid">' + noData.map(renderCard).join('') + '</div>';
       }
-
-      // Tomorrow's opportunities section
-      var tomorrowCities = ALL_DATA.filter(function(c) { return c.tomorrow && c.tomorrow.signal; });
-      if (tomorrowCities.length > 0) {
-        var tomDivergences = tomorrowCities.filter(function(c) { return c.tomorrow.signal.type === 'DIVERGENCE'; });
-        var tomAligned = tomorrowCities.filter(function(c) { return c.tomorrow.signal.type === 'ALIGNED'; });
-
-        html += '<div class="section-label" style="margin-top:24px">🔮 TOMORROW\'S EARLY OPPORTUNITIES — Get Ahead of the Market</div>';
-        html += '<div class="section-note">Tomorrow\'s markets are already open on Kalshi. These are early prices — the biggest edges are found here before other traders catch on.</div>';
-
-        if (tomDivergences.length > 0) {
-          html += '<div class="city-grid">' + tomDivergences.map(renderTomorrowCard).join('') + '</div>';
-        }
-        if (tomAligned.length > 0) {
-          html += '<div class="city-grid">' + tomAligned.map(renderTomorrowCard).join('') + '</div>';
-        }
-      }
-
       if (!html) html = '<div class="loading-container"><h2>No active markets right now</h2><p>Check back tomorrow morning.</p></div>';
       document.getElementById('mainContent').innerHTML = html;
     })
@@ -295,10 +268,9 @@ function loadOverview() {
     });
 }
 
-// ─── Render Today's Card ─────────────────────────────────
 function renderCard(c) {
   var temp = c.currentTemp != null ? Math.round(c.currentTemp) + '<span class="unit">°F</span>' : '--';
-  var url = getKalshiUrl(c.id, c.kalshi);
+  var url = KALSHI_URLS[c.id] || 'https://kalshi.com/category/climate';
   var mDate = formatMarketDate(c.forecastDate || (c.kalshi && c.kalshi.marketDate));
   var dateBadge = '';
   if (mDate.relative) {
@@ -329,39 +301,11 @@ function renderCard(c) {
     '<a href="' + url + '" target="_blank" class="kalshi-link" onclick="event.stopPropagation()">Trade on Kalshi →</a></div>';
 }
 
-// ─── Render Tomorrow's Card ──────────────────────────────
-function renderTomorrowCard(c) {
-  var t = c.tomorrow;
-  var url = getKalshiUrl(c.id, t.kalshi);
-  var mDate = formatMarketDate(t.forecastDate);
-  var badge = '';
-  var detail = '';
-  if (t.signal.type === 'DIVERGENCE') {
-    badge = '<span class="signal-badge divergence">⚡ DIVERGENCE</span>';
-    detail = 'Forecasts → <strong>' + t.signal.consensusBracket + '</strong> (' + formatPrice(t.signal.consensusBracketPrice) + ') · Market favors <strong>' + t.signal.marketFavorite + '</strong> (' + formatPrice(t.signal.marketFavoritePrice) + ')';
-  } else {
-    badge = '<span class="signal-badge aligned">✓ ALIGNED</span>';
-    detail = 'Forecasts & market agree: <strong>' + t.signal.marketFavorite + '</strong> at ' + formatPrice(t.signal.marketFavoritePrice);
-  }
-  return '<div class="city-card" onclick="openTomorrow(\'' + c.id + '\')" style="border-color:#2d1b69">' +
-    '<div class="card-top"><div><div class="city-name">' + c.name + '</div>' + badge + '</div>' +
-    '<div style="text-align:right"><div style="font-size:13px;color:#c084fc;font-weight:600">Tomorrow</div></div></div>' +
-    '<div class="market-date-badge tomorrow">📅 ' + mDate.relative + ' — ' + mDate.display + '</div>' +
-    '<div class="forecast-row">' + (t.forecasts || []).map(function(f) {
-      return '<div class="forecast-chip"><span class="src">' + f.source + '</span><span class="val">H: ' + (f.high != null ? f.high + '°' : '--') + '</span></div>';
-    }).join('') +
-    (t.consensus && t.consensus.high != null ? '<div class="forecast-chip consensus"><span class="src">Consensus</span><span class="val">' + t.consensus.high + '°F</span></div>' : '') +
-    '</div>' +
-    (detail ? '<div class="signal-detail">' + detail + '</div>' : '') +
-    '<a href="' + url + '" target="_blank" class="kalshi-link" onclick="event.stopPropagation()" style="background:#7c3aed">Trade Tomorrow\'s Market →</a></div>';
-}
-
-// ─── Today's Modal ───────────────────────────────────────
 function openCity(id) {
   var c = null;
   for (var i = 0; i < ALL_DATA.length; i++) { if (ALL_DATA[i].id === id) { c = ALL_DATA[i]; break; } }
   if (!c) return;
-  var url = getKalshiUrl(id, c.kalshi);
+  var url = KALSHI_URLS[id] || 'https://kalshi.com/category/climate';
   document.getElementById('modal').classList.add('active');
   document.getElementById('modalTitle').textContent = c.name;
   var html = '';
@@ -402,52 +346,22 @@ function openCity(id) {
   document.getElementById('modalBody').innerHTML = html;
 }
 
-// ─── Tomorrow's Modal ────────────────────────────────────
-function openTomorrow(id) {
-  var c = null;
-  for (var i = 0; i < ALL_DATA.length; i++) { if (ALL_DATA[i].id === id) { c = ALL_DATA[i]; break; } }
-  if (!c || !c.tomorrow) return;
-  var t = c.tomorrow;
-  var url = getKalshiUrl(id, t.kalshi);
-  document.getElementById('modal').classList.add('active');
-  document.getElementById('modalTitle').textContent = c.name + ' — Tomorrow';
-  var html = '';
-  var mDate = formatMarketDate(t.forecastDate);
-  html += '<div class="modal-date-banner" style="border-color:#7c3aed"><span class="date-main">📅 ' + mDate.display + '</span><span class="date-relative tomorrow">' + mDate.relative + '</span></div>';
-  html += '<div class="modal-note">🔮 This is <strong style="color:#c084fc">tomorrow\'s market</strong> — already open for trading on Kalshi. Early prices often have the biggest edges before other traders adjust.</div>';
-  if (c.currentTemp != null) {
-    html += '<div class="consensus-row"><span class="consensus-label">Current Temp Right Now — ' + (c.currentDesc || 'NWS Station') + '</span><span class="consensus-val">' + c.currentTemp + '°F</span></div>';
-  }
-  var forecastLabel = 'for ' + mDate.relative + ' (' + mDate.display + ')';
-  html += '<div class="section-label" style="margin-top:0">Forecasts ' + forecastLabel + '</div>';
-  html += '<div class="forecast-row" style="margin-bottom:20px">';
-  (t.forecasts || []).forEach(function(f) {
-    html += '<div class="forecast-chip"><span class="src">' + f.source + '</span><span class="val">H: ' + (f.high != null ? f.high + '°' : '--') + '  L: ' + (f.low != null ? f.low + '°' : '--') + '</span></div>';
-  });
-  if (t.consensus && t.consensus.high != null) {
-    html += '<div class="forecast-chip consensus"><span class="src">Consensus</span><span class="val">H: ' + t.consensus.high + '°  L: ' + (t.consensus.low || '--') + '°</span></div>';
-  }
-  html += '</div>';
-  if (t.kalshi && t.kalshi.markets && t.kalshi.markets.length) {
-    html += '<div class="section-label">Kalshi Market — ' + (t.kalshi.title || 'High Temp') + '</div>';
-    html += '<table class="bracket-table"><thead><tr><th>Bracket</th><th>Price</th><th>Volume</th></tr></thead><tbody>';
-    t.kalshi.markets.forEach(function(m) {
-      var price = parseFloat(m.lastPrice) || parseFloat(m.yesAsk) || 0;
-      var isMatch = t.signal && t.signal.consensusBracket === m.subtitle;
-      html += '<tr class="' + (isMatch ? 'consensus-match' : '') + '"><td>' + m.subtitle + (isMatch ? ' ← Forecast' : '') + '</td><td class="price-cell">' + formatPrice(price) + '</td><td style="color:#64748b">' + parseInt(m.volume || 0).toLocaleString() + '</td></tr>';
-    });
-    html += '</tbody></table>';
-    html += '<a href="' + url + '" target="_blank" class="kalshi-link" style="background:#7c3aed">Trade Tomorrow\'s Market on Kalshi →</a>';
-  }
-  document.getElementById('modalBody').innerHTML = html;
-}
-
-// ─── Modal Controls ──────────────────────────────────────
 function closeModal() { document.getElementById('modal').classList.remove('active'); }
 document.getElementById('modal').addEventListener('click', function(e) { if (e.target === document.getElementById('modal')) closeModal(); });
 document.addEventListener('keydown', function(e) { if (e.key === 'Escape') closeModal(); });
 
-// ─── Accuracy Section ────────────────────────────────────
+// Live clock
+setInterval(function() {
+  var now = new Date();
+  document.getElementById('liveClock').textContent = now.toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+  if (nextRefreshIn > 0) nextRefreshIn--;
+  var mins = Math.floor(nextRefreshIn / 60);
+  var secs = nextRefreshIn % 60;
+  document.getElementById('refreshCountdown').textContent = nextRefreshIn > 0 ? 'Next refresh in ' + mins + ':' + (secs < 10 ? '0' : '') + secs : 'Refreshing...';
+}, 1000);
+
+// Start
+// Load accuracy data
 function loadAccuracy() {
   fetch('/api/accuracy')
     .then(function(res) { return res.json(); })
@@ -455,16 +369,21 @@ function loadAccuracy() {
       if (!data.hasData) {
         document.getElementById('accuracySection').style.display = 'block';
         document.getElementById('accuracyStats').innerHTML = '';
-        document.getElementById('accuracyHistory').innerHTML = '<div class="no-data-msg">📈 Accuracy tracking is active. Results appear after the NWS publishes the Daily Climate Report each morning.</div>';
+        document.getElementById('accuracyHistory').innerHTML = '<div class="no-data-msg">📈 Accuracy tracking starts tonight. Our first verified results will appear tomorrow morning after the NWS publishes the Daily Climate Report. Check back then.</div>';
         return;
       }
+
       document.getElementById('accuracySection').style.display = 'block';
       var s = data.stats;
+
       document.getElementById('accuracyStats').innerHTML =
         '<div class="stat-box"><div class="stat-val green">' + s.overallAccuracy + '%</div><div class="stat-label">Forecast Accuracy</div></div>' +
+        '<div class="stat-box"><div class="stat-val' + (s.divergenceWinRate !== null ? ' green' : '') + '">' + (s.divergenceWinRate !== null ? s.divergenceWinRate + '%' : '--') + '</div><div class="stat-label">⚡ Divergence Win Rate</div></div>' +
         '<div class="stat-box"><div class="stat-val">' + s.totalPredictions + '</div><div class="stat-label">Total Predictions</div></div>' +
         '<div class="stat-box"><div class="stat-val">' + s.daysTracked + '</div><div class="stat-label">Days Tracked</div></div>' +
-        '<div class="stat-box"><div class="stat-val">' + s.avgForecastDiff + '°</div><div class="stat-label">Avg Forecast Diff</div></div>';
+        '<div class="stat-box"><div class="stat-val">' + s.avgForecastDiff + '°</div><div class="stat-label">Avg Forecast Diff</div></div>' +
+        '<div class="stat-box"><div class="stat-val">' + (s.divergenceTotal || 0) + '</div><div class="stat-label">Divergences Tracked</div></div>';
+
       var histHtml = '<h4 style="font-size:13px;color:#94a3b8;margin-bottom:12px">RECENT DAYS</h4>';
       if (data.recentDays.length === 0) {
         histHtml += '<div class="no-data-msg">Results will appear after the first day is checked.</div>';
@@ -479,20 +398,11 @@ function loadAccuracy() {
       }
       document.getElementById('accuracyHistory').innerHTML = histHtml;
     })
-    .catch(function() {});
+    .catch(function() {
+      // Silently fail — accuracy section just won't show
+    });
 }
 
-// ─── Live Clock ──────────────────────────────────────────
-setInterval(function() {
-  var now = new Date();
-  document.getElementById('liveClock').textContent = now.toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
-  if (nextRefreshIn > 0) nextRefreshIn--;
-  var mins = Math.floor(nextRefreshIn / 60);
-  var secs = nextRefreshIn % 60;
-  document.getElementById('refreshCountdown').textContent = nextRefreshIn > 0 ? 'Next refresh in ' + mins + ':' + (secs < 10 ? '0' : '') + secs : 'Refreshing...';
-}, 1000);
-
-// ─── Start ───────────────────────────────────────────────
 loadOverview();
 loadAccuracy();
 setInterval(loadOverview, 120000);

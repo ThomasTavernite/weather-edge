@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════
-//  WeatherQuant — api/check.js
+//  WeatherBid — api/check.js
 //  Runs daily via Vercel Cron at 11 AM ET (after NWS reports)
 //  Pulls the actual high temp from NWS observations
 //  Compares to yesterday's snapshot and scores accuracy
@@ -24,7 +24,7 @@ async function safeFetch(url) {
   try {
     var res = await fetch(url, {
       signal: controller.signal,
-      headers: { 'User-Agent': 'WeatherQuant/1.0', 'Accept': 'application/json' }
+      headers: { 'User-Agent': 'WeatherBid/1.0', 'Accept': 'application/json' }
     });
     clearTimeout(timer);
     if (!res.ok) return null;
@@ -109,6 +109,8 @@ export default async function handler(req, res) {
     var totalChecked = 0;
     var forecastCorrect = 0;
     var marketCorrect = 0;
+    var divergenceTotal = 0;
+    var divergenceForecastWins = 0;
 
     for (var i = 0; i < snapshots.length; i++) {
       var snap = snapshots[i];
@@ -143,14 +145,18 @@ export default async function handler(req, res) {
         snap.result = 'both_correct';
         forecastCorrect++;
         marketCorrect++;
+        if (snap.signalType === 'DIVERGENCE') { divergenceTotal++; divergenceForecastWins++; }
       } else if (forecastWasClose && !marketWasRight) {
         snap.result = 'forecast_wins';
         forecastCorrect++;
+        if (snap.signalType === 'DIVERGENCE') { divergenceTotal++; divergenceForecastWins++; }
       } else if (!forecastWasClose && marketWasRight) {
         snap.result = 'market_wins';
         marketCorrect++;
+        if (snap.signalType === 'DIVERGENCE') { divergenceTotal++; }
       } else {
         snap.result = 'both_wrong';
+        if (snap.signalType === 'DIVERGENCE') { divergenceTotal++; }
       }
 
       snap.forecastDiff = Math.round(forecastDiff * 10) / 10;
@@ -161,7 +167,7 @@ export default async function handler(req, res) {
     }
 
     // Save updated snapshot with results
-    await kv.set('snapshot:' + checkDate, JSON.stringify(results));
+    await kv.set('snapshot:' + checkDate, results);
 
     // Update running accuracy stats
     var statsData = await kv.get('accuracy_stats');
@@ -171,13 +177,17 @@ export default async function handler(req, res) {
       marketCorrect: 0,
       daysTracked: 0,
       avgForecastDiff: 0,
-      totalForecastDiff: 0
+      totalForecastDiff: 0,
+      divergenceTotal: 0,
+      divergenceForecastWins: 0
     };
 
     stats.totalChecked += totalChecked;
     stats.forecastCorrect += forecastCorrect;
     stats.marketCorrect += marketCorrect;
     stats.daysTracked += 1;
+    stats.divergenceTotal = (stats.divergenceTotal || 0) + divergenceTotal;
+    stats.divergenceForecastWins = (stats.divergenceForecastWins || 0) + divergenceForecastWins;
 
     var dayDiffSum = 0;
     var dayDiffCount = 0;
@@ -192,7 +202,7 @@ export default async function handler(req, res) {
       stats.avgForecastDiff = Math.round(stats.totalForecastDiff / stats.totalChecked * 10) / 10;
     }
 
-    await kv.set('accuracy_stats', JSON.stringify(stats));
+    await kv.set('accuracy_stats', stats);
 
     res.status(200).json({
       success: true,
