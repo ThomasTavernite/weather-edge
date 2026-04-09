@@ -93,12 +93,19 @@ function parseKalshiEvent(ev, today, tomorrow) {
   };
 }
 
+function getMarketPrice(m) {
+  var last = parseFloat(m.lastPrice) || 0;
+  var ask = parseFloat(m.yesAsk) || 0;
+  return Math.max(last, ask);
+}
+
 function buildSignal(consensusHigh, kalshiData) {
   if (!kalshiData || !kalshiData.markets || !kalshiData.markets.length || consensusHigh === null) return null;
   var sorted = kalshiData.markets.slice().sort(function(a, b) {
-    return (parseFloat(b.lastPrice) || parseFloat(b.yesAsk) || 0) - (parseFloat(a.lastPrice) || parseFloat(a.yesAsk) || 0);
+    return getMarketPrice(b) - getMarketPrice(a);
   });
   var fav = sorted[0];
+  if (getMarketPrice(fav) <= 0.01) return null;
   var match = null;
   for (var i = 0; i < kalshiData.markets.length; i++) {
     var m = kalshiData.markets[i];
@@ -114,9 +121,9 @@ function buildSignal(consensusHigh, kalshiData) {
   return {
     type: match.ticker === fav.ticker ? 'ALIGNED' : 'DIVERGENCE',
     consensusBracket: match.subtitle,
-    consensusBracketPrice: parseFloat(match.lastPrice) || parseFloat(match.yesAsk) || 0,
+    consensusBracketPrice: getMarketPrice(match),
     marketFavorite: fav.subtitle,
-    marketFavoritePrice: parseFloat(fav.lastPrice) || parseFloat(fav.yesAsk) || 0
+    marketFavoritePrice: getMarketPrice(fav)
   };
 }
 
