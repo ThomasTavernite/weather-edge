@@ -107,7 +107,7 @@ function buildSignal(consensusHigh, kalshiData) {
     var below = s.match(/(\d+)°?\s*or\s*below/);
     var above = s.match(/(\d+)°?\s*or\s*above/);
     if (range && consensusHigh >= parseInt(range[1]) && consensusHigh <= parseInt(range[2]) + 0.9) { match = m; break; }
-    if (below && consensusHigh <= parseInt(below[1])) { match = m; break; }
+    if (below && consensusHigh <= parseInt(below[1]) + 0.9) { match = m; break; }
     if (above && consensusHigh >= parseInt(above[1])) { match = m; break; }
   }
   if (!match || !fav) return null;

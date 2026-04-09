@@ -149,7 +149,7 @@ export default async function handler(req, res) {
         var above = favBracket.match(/(\d+)°?\s*or\s*above/);
         var forecastInFav = false;
         if (range && forecastHigh >= parseInt(range[1]) && forecastHigh <= parseInt(range[2]) + 0.9) forecastInFav = true;
-        if (below && forecastHigh <= parseInt(below[1])) forecastInFav = true;
+        if (below && forecastHigh <= parseInt(below[1]) + 0.9) forecastInFav = true;
         if (above && forecastHigh >= parseInt(above[1])) forecastInFav = true;
         signalType = forecastInFav ? 'ALIGNED' : 'DIVERGENCE';
       }
