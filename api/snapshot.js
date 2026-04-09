@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════
-//  WeatherBid — api/snapshot.js
+//  WeatherQuant — api/snapshot.js
 //  Runs daily via Vercel Cron at 10 PM ET
 //  Saves today's forecast consensus + Kalshi market favorite
 //  for each city so we can check accuracy tomorrow
@@ -42,7 +42,7 @@ async function safeFetch(url, timeout) {
   try {
     var res = await fetch(url, {
       signal: controller.signal,
-      headers: { 'User-Agent': 'WeatherBid/1.0', 'Accept': 'application/json' }
+      headers: { 'User-Agent': 'WeatherQuant/1.0', 'Accept': 'application/json' }
     });
     clearTimeout(timer);
     if (!res.ok) return null;

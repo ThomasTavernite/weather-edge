@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════
-//  WeatherBid — api/check.js
+//  WeatherQuant — api/check.js
 //  Runs daily via Vercel Cron at 11 AM ET (after NWS reports)
 //  Pulls the actual high temp from NWS observations
 //  Compares to yesterday's snapshot and scores accuracy
@@ -24,7 +24,7 @@ async function safeFetch(url) {
   try {
     var res = await fetch(url, {
       signal: controller.signal,
-      headers: { 'User-Agent': 'WeatherBid/1.0', 'Accept': 'application/json' }
+      headers: { 'User-Agent': 'WeatherQuant/1.0', 'Accept': 'application/json' }
     });
     clearTimeout(timer);
     if (!res.ok) return null;

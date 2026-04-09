@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════
-//  WeatherBid — api/verify.js
+//  WeatherQuant — api/verify.js
 //  Pulls Kalshi's official rules_primary field for each city
 //  to verify the exact NWS station used for settlement
 //  Access: /api/verify?key=verify2026
@@ -27,7 +27,7 @@ async function safeFetch(url) {
   try {
     var res = await fetch(url, {
       signal: controller.signal,
-      headers: { 'User-Agent': 'WeatherBid/1.0', 'Accept': 'application/json' }
+      headers: { 'User-Agent': 'WeatherQuant/1.0', 'Accept': 'application/json' }
     });
     clearTimeout(timer);
     if (!res.ok) return null;

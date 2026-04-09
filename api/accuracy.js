@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════
-//  WeatherBid — api/accuracy.js
+//  WeatherQuant — api/accuracy.js
 //  Returns accuracy stats and recent results for the frontend
 // ═══════════════════════════════════════════════════════════
 
