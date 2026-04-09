@@ -182,6 +182,11 @@
 </div>
 <script>
 var KALSHI_URLS={nyc:'https://kalshi.com/markets/kxhighny/highest-temperature-in-nyc',chi:'https://kalshi.com/markets/kxhighchi/highest-temperature-in-chicago',mia:'https://kalshi.com/markets/kxhighmia/highest-temperature-in-miami',lax:'https://kalshi.com/markets/kxhighlax/highest-temperature-in-los-angeles',sfo:'https://kalshi.com/markets/kxhightsfo/san-francisco-high-temperature-daily',phi:'https://kalshi.com/markets/kxhighphil/highest-temperature-in-philadelphia',aus:'https://kalshi.com/markets/kxhighaus/highest-temperature-in-austin',den:'https://kalshi.com/markets/kxhighden/highest-temperature-in-denver',sea:'https://kalshi.com/markets/kxhightsea/seattle-maximum-temperature-daily',lv:'https://kalshi.com/markets/kxhightlv/las-vegas-max-daily-temperature',bos:'https://kalshi.com/markets/kxhightbos/boston-maximum-daily-temperature',nola:'https://kalshi.com/markets/kxhightnola/new-orleans-max-temp-daily',dc:'https://kalshi.com/markets/kxhightdc/washington-dc-daily-max-temp'};
+function getKalshiUrl(cityId, kalshi){
+  var base = KALSHI_URLS[cityId]||'https://kalshi.com/category/climate';
+  if(kalshi&&kalshi.eventTicker){return base+'/'+kalshi.eventTicker.toLowerCase();}
+  return base;
+}
 var ALL_DATA=[];var nextRefreshIn=120;
 function formatPrice(p){if(p==null)return'--';var n=parseFloat(p);if(isNaN(n))return'--';if(n<1)return Math.round(n*100)+'¢';return'$'+n.toFixed(2)}
 function formatDate(ds){if(!ds)return'';var d=new Date(ds+'T12:00:00');return d.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'})}
@@ -234,7 +239,7 @@ function renderCard(c,period){
   var consensus=isTom?c.consensusTomorrow:c.consensusToday;
   var dateStr=isTom?c.forecastDateTomorrow:c.forecastDate;
   var temp=c.currentTemp!=null?Math.round(c.currentTemp)+'<span class="unit">°F</span>':'--';
-  var url=KALSHI_URLS[c.id]||'https://kalshi.com/category/climate';
+  var url=getKalshiUrl(c.id,kalshi);
   var dateBadge='<div class="market-date-badge">📅 '+formatDate(dateStr)+'</div>';
   var badge='<span class="signal-badge nodata">NO SIGNAL</span>';
   var detail='';
@@ -254,7 +259,7 @@ function openCity(id,period){
   var forecasts=isTom?c.forecastsTomorrow:c.forecastsToday;
   var consensus=isTom?c.consensusTomorrow:c.consensusToday;
   var dateStr=isTom?c.forecastDateTomorrow:c.forecastDate;
-  var url=KALSHI_URLS[id]||'https://kalshi.com/category/climate';
+  var url=getKalshiUrl(id,kalshi);
   document.getElementById('modal').classList.add('active');
   document.getElementById('modalTitle').textContent=c.name;
   var h='';
