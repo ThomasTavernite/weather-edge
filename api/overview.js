@@ -1,8 +1,7 @@
 // ═══════════════════════════════════════════════════════════
-//  WeatherQuant — api/overview.js (FAST version)
-//  Open-Meteo for forecasts (instant, no auth)
-//  NWS for current temp only (single fast call)
-//  Kalshi for market prices (sequential to avoid rate limits)
+//  WeatherQuant — api/overview.js
+//  Returns BOTH today's and tomorrow's markets for each city
+//  Sequential Kalshi calls to avoid rate limits
 // ═══════════════════════════════════════════════════════════
 
 var CITIES = [
@@ -131,59 +130,76 @@ export default async function handler(req, res) {
     var tomorrow = getTomorrowStr();
 
     // Step 1: Fetch ALL Kalshi data sequentially to avoid rate limits
-    var kalshiMap = {};
+    var kalshiTodayMap = {};
+    var kalshiTomorrowMap = {};
+
     for (var k = 0; k < CITIES.length; k++) {
       var city = CITIES[k];
       var url = 'https://api.elections.kalshi.com/trade-api/v2/events?series_ticker=' + city.kalshi + '&status=open&with_nested_markets=true&limit=5';
       var data = await safeFetch(url);
 
       if (data && data.events && data.events.length) {
-        var todayEvent = null;
-        var tomorrowEvent = null;
         for (var e = 0; e < data.events.length; e++) {
           var parsed = parseKalshiEvent(data.events[e], today, tomorrow);
-          if (parsed && parsed.marketDate === today) todayEvent = parsed;
-          if (parsed && parsed.marketDate === tomorrow) tomorrowEvent = parsed;
+          if (parsed && parsed.marketDate === today) kalshiTodayMap[city.id] = parsed;
+          if (parsed && parsed.marketDate === tomorrow) kalshiTomorrowMap[city.id] = parsed;
         }
-        kalshiMap[city.id] = todayEvent || tomorrowEvent || null;
-      } else {
-        kalshiMap[city.id] = null;
       }
+      if (!kalshiTodayMap[city.id]) kalshiTodayMap[city.id] = null;
+      if (!kalshiTomorrowMap[city.id]) kalshiTomorrowMap[city.id] = null;
 
-      // Small delay between Kalshi calls to avoid rate limiting
       await new Promise(function(r) { setTimeout(r, 200); });
     }
 
-    // Step 2: Fetch weather data for all cities in parallel (these APIs don't rate limit)
+    // Step 2: Fetch weather data in parallel
     var results = await Promise.all(CITIES.map(async function(city) {
       var openMeteoMap = await getOpenMeteo(city);
       var observation = null;
       try { observation = await getNWSObservation(city); } catch(e) {}
 
-      var kalshi = kalshiMap[city.id];
-      var targetDate = (kalshi && kalshi.marketDate) || today;
-      var forecasts = [];
+      var kalshiToday = kalshiTodayMap[city.id];
+      var kalshiTomorrow = kalshiTomorrowMap[city.id];
 
-      if (openMeteoMap && openMeteoMap[targetDate]) {
-        forecasts.push({ source: 'Open-Meteo', high: openMeteoMap[targetDate].high, low: openMeteoMap[targetDate].low });
+      // Today's forecasts
+      var forecastsToday = [];
+      if (openMeteoMap && openMeteoMap[today]) {
+        forecastsToday.push({ source: 'Open-Meteo', high: openMeteoMap[today].high, low: openMeteoMap[today].low });
       }
+      var highsToday = forecastsToday.filter(function(f) { return f.high != null; }).map(function(f) { return f.high; });
+      var lowsToday = forecastsToday.filter(function(f) { return f.low != null; }).map(function(f) { return f.low; });
+      var consensusHighToday = highsToday.length ? Math.round(highsToday.reduce(function(a,b){return a+b;},0) / highsToday.length * 10) / 10 : null;
+      var consensusLowToday = lowsToday.length ? Math.round(lowsToday.reduce(function(a,b){return a+b;},0) / lowsToday.length * 10) / 10 : null;
 
-      var highs = forecasts.filter(function(f) { return f.high != null; }).map(function(f) { return f.high; });
-      var lows = forecasts.filter(function(f) { return f.low != null; }).map(function(f) { return f.low; });
-      var consensusHigh = highs.length ? Math.round(highs.reduce(function(a, b) { return a + b; }, 0) / highs.length * 10) / 10 : null;
-      var consensusLow = lows.length ? Math.round(lows.reduce(function(a, b) { return a + b; }, 0) / lows.length * 10) / 10 : null;
+      // Tomorrow's forecasts
+      var forecastsTomorrow = [];
+      if (openMeteoMap && openMeteoMap[tomorrow]) {
+        forecastsTomorrow.push({ source: 'Open-Meteo', high: openMeteoMap[tomorrow].high, low: openMeteoMap[tomorrow].low });
+      }
+      var highsTom = forecastsTomorrow.filter(function(f) { return f.high != null; }).map(function(f) { return f.high; });
+      var lowsTom = forecastsTomorrow.filter(function(f) { return f.low != null; }).map(function(f) { return f.low; });
+      var consensusHighTomorrow = highsTom.length ? Math.round(highsTom.reduce(function(a,b){return a+b;},0) / highsTom.length * 10) / 10 : null;
+      var consensusLowTomorrow = lowsTom.length ? Math.round(lowsTom.reduce(function(a,b){return a+b;},0) / lowsTom.length * 10) / 10 : null;
 
       return {
         id: city.id, name: city.name,
         currentTemp: observation ? observation.tempF : null,
         currentDesc: observation ? observation.desc : '',
-        forecasts: forecasts, forecastDate: targetDate,
-        consensus: { high: consensusHigh, low: consensusLow },
-        kalshi: kalshi, signal: buildSignal(consensusHigh, kalshi),
+        // Today
+        forecastsToday: forecastsToday,
+        forecastDate: today,
+        consensusToday: { high: consensusHighToday, low: consensusLowToday },
+        kalshiToday: kalshiToday,
+        signalToday: buildSignal(consensusHighToday, kalshiToday),
+        // Tomorrow
+        forecastsTomorrow: forecastsTomorrow,
+        forecastDateTomorrow: tomorrow,
+        consensusTomorrow: { high: consensusHighTomorrow, low: consensusLowTomorrow },
+        kalshiTomorrow: kalshiTomorrow,
+        signalTomorrow: buildSignal(consensusHighTomorrow, kalshiTomorrow),
       };
     }));
 
-    res.status(200).json({ cities: results, updatedAt: new Date().toISOString() });
+    res.status(200).json({ cities: results, today: today, tomorrow: tomorrow, updatedAt: new Date().toISOString() });
   } catch (err) {
     console.error('Overview error:', err);
     res.status(500).json({ error: 'Failed to fetch data', detail: err.message });
