@@ -3,12 +3,13 @@
     "api/overview.js": { "maxDuration": 60 },
     "api/snapshot.js": { "maxDuration": 60 },
     "api/check.js": { "maxDuration": 60 },
-    "api/accuracy.js": { "maxDuration": 10 }
+    "api/accuracy.js": { "maxDuration": 10 },
+    "api/verify.js": { "maxDuration": 60 }
   },
   "crons": [
     {
       "path": "/api/snapshot",
-      "schedule": "0 14 * * *"
+      "schedule": "0 2 * * *"
     },
     {
       "path": "/api/check",
