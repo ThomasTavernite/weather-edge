@@ -194,7 +194,7 @@ function formatDate(ds){if(!ds)return'';var d=new Date(ds+'T12:00:00');return d.
 function loadOverview(){
   var dot=document.getElementById('statusDot'),txt=document.getElementById('statusText');
   dot.className='status-dot loading';txt.textContent='Refreshing...';
-  fetch('/api/overview').then(function(r){return r.json()}).then(function(json){
+  fetch('/api/overview?t='+Date.now()).then(function(r){return r.json()}).then(function(json){
     ALL_DATA=json.cities||[];
     dot.className='status-dot live';txt.textContent='Live';nextRefreshIn=120;
     // TODAY'S MARKETS
