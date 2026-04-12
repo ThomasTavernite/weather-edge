@@ -105,7 +105,25 @@ function buildSignal(consensusHigh, kalshiData) {
     return getMarketPrice(b) - getMarketPrice(a);
   });
   var fav = sorted[0];
-  if (getMarketPrice(fav) <= 0.01) return null;
+  var favPrice = getMarketPrice(fav);
+  if (favPrice <= 0.01) return null;
+
+  // Calculate total volume for liquidity assessment
+  var totalVolume = 0;
+  for (var v = 0; v < kalshiData.markets.length; v++) {
+    totalVolume += parseInt(kalshiData.markets[v].volume) || 0;
+  }
+
+  // Check price spread between top two brackets
+  var secondPrice = sorted.length > 1 ? getMarketPrice(sorted[1]) : 0;
+  var priceSpread = favPrice - secondPrice;
+
+  // Determine confidence level
+  var confidence = 'HIGH';
+  if (totalVolume < 500) confidence = 'LOW';
+  else if (totalVolume < 2000) confidence = 'MODERATE';
+  if (priceSpread < 0.05 && confidence !== 'LOW') confidence = 'MODERATE';
+
   var match = null;
   for (var i = 0; i < kalshiData.markets.length; i++) {
     var m = kalshiData.markets[i];
@@ -118,12 +136,26 @@ function buildSignal(consensusHigh, kalshiData) {
     if (above && consensusHigh >= parseInt(above[1])) { match = m; break; }
   }
   if (!match || !fav) return null;
+
+  // Check if forecast is near a bracket boundary (within 0.3°F)
+  var nearBoundary = false;
+  var fracPart = consensusHigh % 1;
+  if (fracPart >= 0.7 || fracPart <= 0.3) nearBoundary = true;
+
+  // If price spread is less than 3¢, don't declare a meaningful divergence
+  var signalType = match.ticker === fav.ticker ? 'ALIGNED' : 'DIVERGENCE';
+  if (signalType === 'DIVERGENCE' && priceSpread < 0.03) signalType = 'ALIGNED';
+
   return {
-    type: match.ticker === fav.ticker ? 'ALIGNED' : 'DIVERGENCE',
+    type: signalType,
     consensusBracket: match.subtitle,
     consensusBracketPrice: getMarketPrice(match),
     marketFavorite: fav.subtitle,
-    marketFavoritePrice: getMarketPrice(fav)
+    marketFavoritePrice: getMarketPrice(fav),
+    confidence: confidence,
+    totalVolume: totalVolume,
+    priceSpread: Math.round(priceSpread * 100),
+    nearBoundary: nearBoundary
   };
 }
 

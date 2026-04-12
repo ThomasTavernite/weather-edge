@@ -47,6 +47,13 @@
   .forecast-chip.consensus{background:#172033;border:1px solid #3b82f6}
   .forecast-chip.consensus .src{color:#3b82f6}
   .forecast-chip.consensus .val{color:#3b82f6}
+  .forecast-chip.forecast-avg{background:#172033;border:1px solid #3b82f6}
+  .forecast-chip.forecast-avg .src{color:#3b82f6}
+  .forecast-chip.forecast-avg .val{color:#3b82f6}
+  .confidence-badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600;margin-left:6px;vertical-align:middle}
+  .confidence-badge.high{background:rgba(34,197,94,.15);color:#22c55e}
+  .confidence-badge.moderate{background:rgba(245,158,11,.15);color:#f59e0b}
+  .confidence-badge.low{background:rgba(239,68,68,.15);color:#ef4444}
   .signal-badge{display:inline-block;padding:4px 10px;border-radius:6px;font-size:12px;font-weight:600;letter-spacing:.5px;margin-top:6px}
   .signal-badge.aligned{background:rgba(34,197,94,.15);color:#22c55e;border:1px solid rgba(34,197,94,.3)}
   .signal-badge.divergence{background:rgba(245,158,11,.15);color:#f59e0b;border:1px solid rgba(245,158,11,.3)}
@@ -194,7 +201,7 @@
     </div>
     <div class="how-content" id="howContent">
       <div class="how-step"><div class="step-num">1</div><div class="step-text"><h3>We pull forecasts from Open-Meteo</h3><p>Every few minutes, WeatherQuant checks Open-Meteo — an open-source service aggregating multiple global weather models (GFS, ECMWF, and more) — for high/low temperature forecasts for each city.</p></div></div>
-      <div class="how-step"><div class="step-num">2</div><div class="step-text"><h3>We compare forecasts against Kalshi's market prices</h3><p>Kalshi lists temperature markets with brackets like "72° to 73°." Each bracket has a price — buy "Yes" on a bracket you believe in, and if you're right, each contract pays $1.00. For example, if you spot an underpriced bracket at 10¢ and buy 100 contracts for $10, and it hits — you get $100 back. That's a $90 profit from a $10 position. Scale it up: $100 in could become $1,000 out.</p></div></div>
+      <div class="how-step"><div class="step-num">2</div><div class="step-text"><h3>We compare forecasts against Kalshi's market prices</h3><p>Kalshi lists temperature markets with brackets like "72° to 73°." Each bracket has a price — that price represents what traders think the probability is. A bracket at 40¢ means traders estimate a 40% chance. Buy "Yes" at 40¢ and if that bracket wins, you get $1.00 back. If it loses, you lose your 40¢. Weather trading carries real risk — brackets can and do settle at $0.</p></div></div>
       <div class="how-step"><div class="step-num">3</div><div class="step-text"><h3>The "← Forecast" tag shows where forecasts point</h3><p>In the bracket table, the row tagged <strong style="color:#3b82f6">← Forecast</strong> is the bracket the forecast temperature falls into.</p></div></div>
       <div class="how-step"><div class="step-num">4</div><div class="step-text"><h3>Signals tell you if the market agrees or disagrees</h3><div class="signal-example"><span class="green">✓ ALIGNED</span> — Forecast and the market's top bracket match. No edge.<br><br><strong>⚡ DIVERGENCE</strong> — Our forecast points to a different bracket than what the market is pricing. This is a signal to investigate further, not a guarantee. The market often has access to fresher data — always verify with current conditions before placing any trade.</div></div></div>
       <div class="how-step"><div class="step-num">5</div><div class="step-text"><h3>Divergence ≠ guaranteed profit</h3><p>Weather models can be wrong. Kalshi settles on the <strong style="color:#e1e4ea">official NWS Daily Climate Report</strong> — not forecasts. A divergence means "worth investigating," not "free money." Never trade more than you can afford to lose.</p></div></div>
@@ -216,7 +223,7 @@
   <div class="accuracy-section" id="accuracySection" style="display:none">
     <div class="trust-section" style="margin-top:0;margin-bottom:0">
       <h3>📊 Track Record — Verified Accuracy</h3>
-      <p style="font-size:12px;color:#64748b;margin-bottom:16px">Every day, we snapshot our forecast consensus before the market settles. The next morning, we compare it to the official NWS result. This data is logged automatically — no cherry-picking, no editing.</p>
+      <p style="font-size:12px;color:#64748b;margin-bottom:16px">Every day, we snapshot our forecast before the market settles. The next morning, we check our prediction against Kalshi's actual settlement result — the same outcome that determines trader payouts. This data is logged automatically — no cherry-picking, no editing.</p>
       <div id="accuracyStats" style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:20px"></div>
       <div id="accuracyHistory"></div>
     </div>
@@ -324,7 +331,7 @@ function renderCard(c,period){
     if(signal.type==='DIVERGENCE'){badge='<span class="signal-badge divergence">⚡ DIVERGENCE</span>';detail='Our forecast → <strong>'+signal.consensusBracket+'</strong> ('+formatPrice(signal.consensusBracketPrice)+') · Market favors <strong>'+signal.marketFavorite+'</strong> ('+formatPrice(signal.marketFavoritePrice)+') · Investigate before trading';}
     else{badge='<span class="signal-badge aligned">✓ ALIGNED</span>';detail='Forecasts & market agree: <strong>'+signal.marketFavorite+'</strong> at '+formatPrice(signal.marketFavoritePrice);}
   }
-  return '<div class="city-card'+(isTom?' tomorrow':'')+'" onclick="openCity(\''+c.id+'\',\''+period+'\')">'+'<div class="card-top"><div><div class="city-name">'+c.name+'</div>'+badge+'</div>'+tempBlock+'</div>'+dateBadge+'<div class="forecast-row">'+(forecasts||[]).map(function(f){return'<div class="forecast-chip"><span class="src">'+f.source+'</span><span class="val">H: '+(f.high!=null?f.high+'°':'--')+'</span></div>'}).join('')+(consensus&&consensus.high!=null?'<div class="forecast-chip consensus"><span class="src">Consensus</span><span class="val">'+consensus.high+'°F</span></div>':'')+'</div>'+(detail?'<div class="signal-detail">'+detail+'</div>':'')+'<a href="'+url+'" target="_blank" class="kalshi-link" onclick="event.stopPropagation()">Trade on Kalshi →</a></div>';
+  return '<div class="city-card'+(isTom?' tomorrow':'')+'" onclick="openCity(\''+c.id+'\',\''+period+'\')">'+'<div class="card-top"><div><div class="city-name">'+c.name+'</div>'+badge+'</div>'+tempBlock+'</div>'+dateBadge+'<div class="forecast-row">'+(forecasts||[]).map(function(f){return'<div class="forecast-chip"><span class="src">'+f.source+'</span><span class="val">H: '+(f.high!=null?f.high+'°':'--')+'</span></div>'}).join('')+(consensus&&consensus.high!=null?'<div class="forecast-chip consensus"><span class="src">Forecast</span><span class="val">'+consensus.high+'°F</span></div>':'')+'</div>'+(detail?'<div class="signal-detail">'+detail+'</div>':'')+'<a href="'+url+'" target="_blank" class="kalshi-link" onclick="event.stopPropagation()">Trade on Kalshi →</a></div>';
 }
 
 function openCity(id,period){

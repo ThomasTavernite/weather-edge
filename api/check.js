@@ -1,22 +1,13 @@
 // ═══════════════════════════════════════════════════════════
 //  WeatherQuant — api/check.js
-//  Runs daily via Vercel Cron at 11 AM ET (after NWS reports)
-//  Pulls the actual high temp from NWS observations
-//  Compares to yesterday's snapshot and scores accuracy
+//  Scores accuracy by checking KALSHI'S OWN SETTLEMENT DATA
+//  not NWS observations. This ensures our accuracy matches
+//  exactly what traders experience.
 // ═══════════════════════════════════════════════════════════
 
 import { kv } from '@vercel/kv';
 
-export const config = {
-  maxDuration: 60
-};
-
-// NWS station IDs — these are the EXACT stations Kalshi settles against
-var STATIONS = {
-  nyc: 'KNYC', chi: 'KMDW', mia: 'KMIA', lax: 'KLAX',
-  sfo: 'KSFO', phi: 'KPHL', aus: 'KAUS', den: 'KDEN',
-  sea: 'KSEA', lv: 'KLAS', bos: 'KBOS', nola: 'KMSY', dc: 'KDCA'
-};
+export const config = { maxDuration: 60 };
 
 async function safeFetch(url) {
   var controller = new AbortController();
@@ -35,70 +26,79 @@ async function safeFetch(url) {
   }
 }
 
-// Get yesterday's actual high from NWS observations
-async function getActualHigh(stationId, targetDate) {
-  // Fetch recent observations and find the max temp for the target date
-  var url = 'https://api.weather.gov/stations/' + stationId + '/observations?start=' + targetDate + 'T00:00:00-05:00&end=' + targetDate + 'T23:59:59-05:00&limit=100';
-  var data = await safeFetch(url);
-  if (!data || !data.features || !data.features.length) return null;
+// Get the actual settlement result from Kalshi's own API
+// Returns: { winningBracket: "56° to 57°", settledTemp: 57 } or null
+async function getKalshiSettlement(eventTicker) {
+  if (!eventTicker) return null;
 
-  var maxTemp = -999;
-  for (var i = 0; i < data.features.length; i++) {
-    var obs = data.features[i];
-    var tempC = obs.properties && obs.properties.temperature && obs.properties.temperature.value;
-    if (tempC !== null && tempC !== undefined) {
-      var tempF = Math.round((tempC * 9 / 5 + 32) * 10) / 10;
-      if (tempF > maxTemp) maxTemp = tempF;
+  var url = 'https://api.elections.kalshi.com/trade-api/v2/events/' + eventTicker + '?with_nested_markets=true';
+  var data = await safeFetch(url);
+
+  if (!data || !data.event || !data.event.markets) {
+    // Try alternate endpoint
+    url = 'https://api.elections.kalshi.com/trade-api/v2/events?event_ticker=' + eventTicker + '&with_nested_markets=true&limit=1';
+    data = await safeFetch(url);
+    if (!data || !data.events || !data.events.length) return null;
+    data = { event: data.events[0] };
+  }
+
+  var markets = data.event.markets;
+  if (!markets || !markets.length) return null;
+
+  // Find the bracket that won (result = "yes")
+  var winner = null;
+  for (var i = 0; i < markets.length; i++) {
+    if (markets[i].result === 'yes') {
+      winner = markets[i];
+      break;
     }
   }
 
-  return maxTemp > -999 ? maxTemp : null;
+  if (!winner) return null; // Market hasn't settled yet
+
+  var bracket = winner.yes_sub_title || winner.subtitle || '';
+  
+  // Extract the temperature from the winning bracket for diff calculation
+  var settledTemp = null;
+  var s = bracket.toLowerCase();
+  var range = s.match(/(\d+)°?\s*to\s*(\d+)/);
+  var below = s.match(/(\d+)°?\s*or\s*below/);
+  var above = s.match(/(\d+)°?\s*or\s*above/);
+  
+  if (range) settledTemp = (parseInt(range[1]) + parseInt(range[2])) / 2;
+  else if (below) settledTemp = parseInt(below[1]);
+  else if (above) settledTemp = parseInt(above[1]);
+
+  return { winningBracket: bracket, settledTemp: settledTemp };
 }
 
-// Determine if a temp falls within a bracket string like "56° to 57°" or "53° or below"
+// Check if a forecast temp falls within a bracket string
 function tempInBracket(temp, bracket) {
-  if (!bracket) return false;
+  if (!bracket || temp === null) return false;
   var s = bracket.toLowerCase();
   var range = s.match(/(\d+)°?\s*to\s*(\d+)/);
   var below = s.match(/(\d+)°?\s*or\s*below/);
   var above = s.match(/(\d+)°?\s*or\s*above/);
 
-  if (range) {
-    var lo = parseInt(range[1]);
-    var hi = parseInt(range[2]);
-    return temp >= lo && temp <= hi + 0.9;
-  }
-  if (below) return temp <= parseInt(below[1]);
+  if (range) return temp >= parseInt(range[1]) && temp <= parseInt(range[2]) + 0.9;
+  if (below) return temp <= parseInt(below[1]) + 0.9;
   if (above) return temp >= parseInt(above[1]);
   return false;
-}
-
-// Figure out which bracket a temp falls in given a bracket string format
-function findBracketForTemp(temp, brackets) {
-  for (var i = 0; i < brackets.length; i++) {
-    if (tempInBracket(temp, brackets[i])) return brackets[i];
-  }
-  return null;
 }
 
 export default async function handler(req, res) {
   var cronHeader = req.headers['x-vercel-cron'];
   var manualKey = req.query.key;
-
   if (!cronHeader && manualKey !== 'check2026') {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
   try {
-    // Get yesterday's date
     var yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
     var yesterdayStr = yesterday.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
-
-    // Allow checking a specific date via query param
     var checkDate = req.query.date || yesterdayStr;
 
-    // Load the snapshot for that date
     var snapshotData = await kv.get('snapshot:' + checkDate);
     if (!snapshotData) {
       return res.status(404).json({ error: 'No snapshot found for ' + checkDate });
@@ -114,43 +114,45 @@ export default async function handler(req, res) {
 
     for (var i = 0; i < snapshots.length; i++) {
       var snap = snapshots[i];
-      var station = STATIONS[snap.cityId];
-      if (!station || !snap.forecastHigh || !snap.marketFavorite) {
+
+      if (!snap.forecastHigh || !snap.eventTicker) {
         results.push(snap);
         continue;
       }
 
-      // Get actual high temp from NWS
-      var actualHigh = await getActualHigh(station, snap.targetDate);
-      if (actualHigh === null) {
-        snap.result = 'no_data';
+      // Get Kalshi's actual settlement — THE source of truth
+      var settlement = await getKalshiSettlement(snap.eventTicker);
+
+      if (!settlement) {
+        snap.result = 'not_settled';
         results.push(snap);
         continue;
       }
 
-      snap.actualHigh = actualHigh;
+      snap.winningBracket = settlement.winningBracket;
+      snap.settledTemp = settlement.settledTemp;
 
-      // Did actual temp fall in forecast's predicted bracket?
-      // Forecast consensus is a number — find which bracket it pointed to
-      // We check: was the actual temp closer to our forecast or to the market favorite?
-      var forecastDiff = Math.abs(actualHigh - snap.forecastHigh);
+      // Did our forecast point to the winning bracket?
+      var forecastInWinner = tempInBracket(snap.forecastHigh, settlement.winningBracket);
 
-      // Check if actual fell in the market favorite bracket
-      var marketWasRight = tempInBracket(actualHigh, snap.marketFavorite);
+      // Did the market favorite match the winning bracket?
+      var marketWasRight = snap.marketFavorite === settlement.winningBracket;
 
-      // Check if forecast was within 2°F (our consensus bracket would be right)
-      var forecastWasClose = forecastDiff <= 2;
+      // Calculate forecast diff from settled temp
+      if (settlement.settledTemp !== null) {
+        snap.forecastDiff = Math.round(Math.abs(snap.forecastHigh - settlement.settledTemp) * 10) / 10;
+      }
 
-      if (forecastWasClose && marketWasRight) {
+      if (forecastInWinner && marketWasRight) {
         snap.result = 'both_correct';
         forecastCorrect++;
         marketCorrect++;
         if (snap.signalType === 'DIVERGENCE') { divergenceTotal++; divergenceForecastWins++; }
-      } else if (forecastWasClose && !marketWasRight) {
+      } else if (forecastInWinner && !marketWasRight) {
         snap.result = 'forecast_wins';
         forecastCorrect++;
         if (snap.signalType === 'DIVERGENCE') { divergenceTotal++; divergenceForecastWins++; }
-      } else if (!forecastWasClose && marketWasRight) {
+      } else if (!forecastInWinner && marketWasRight) {
         snap.result = 'market_wins';
         marketCorrect++;
         if (snap.signalType === 'DIVERGENCE') { divergenceTotal++; }
@@ -159,27 +161,21 @@ export default async function handler(req, res) {
         if (snap.signalType === 'DIVERGENCE') { divergenceTotal++; }
       }
 
-      snap.forecastDiff = Math.round(forecastDiff * 10) / 10;
       totalChecked++;
       results.push(snap);
 
       await new Promise(function(r) { setTimeout(r, 300); });
     }
 
-    // Save updated snapshot with results
+    // Save updated snapshot
     await kv.set('snapshot:' + checkDate, results);
 
     // Update running accuracy stats
     var statsData = await kv.get('accuracy_stats');
     var stats = statsData ? (typeof statsData === 'string' ? JSON.parse(statsData) : statsData) : {
-      totalChecked: 0,
-      forecastCorrect: 0,
-      marketCorrect: 0,
-      daysTracked: 0,
-      avgForecastDiff: 0,
-      totalForecastDiff: 0,
-      divergenceTotal: 0,
-      divergenceForecastWins: 0
+      totalChecked: 0, forecastCorrect: 0, marketCorrect: 0,
+      daysTracked: 0, avgForecastDiff: 0, totalForecastDiff: 0,
+      divergenceTotal: 0, divergenceForecastWins: 0
     };
 
     stats.totalChecked += totalChecked;
@@ -189,8 +185,7 @@ export default async function handler(req, res) {
     stats.divergenceTotal = (stats.divergenceTotal || 0) + divergenceTotal;
     stats.divergenceForecastWins = (stats.divergenceForecastWins || 0) + divergenceForecastWins;
 
-    var dayDiffSum = 0;
-    var dayDiffCount = 0;
+    var dayDiffSum = 0, dayDiffCount = 0;
     for (var j = 0; j < results.length; j++) {
       if (results[j].forecastDiff !== undefined) {
         dayDiffSum += results[j].forecastDiff;
@@ -198,20 +193,18 @@ export default async function handler(req, res) {
       }
     }
     if (dayDiffCount > 0) {
-      stats.totalForecastDiff += dayDiffSum;
+      stats.totalForecastDiff = (stats.totalForecastDiff || 0) + dayDiffSum;
       stats.avgForecastDiff = Math.round(stats.totalForecastDiff / stats.totalChecked * 10) / 10;
     }
 
     await kv.set('accuracy_stats', stats);
 
     res.status(200).json({
-      success: true,
-      date: checkDate,
+      success: true, date: checkDate,
       totalChecked: totalChecked,
       forecastCorrect: forecastCorrect,
       marketCorrect: marketCorrect,
-      stats: stats,
-      results: results
+      stats: stats, results: results
     });
 
   } catch (err) {
