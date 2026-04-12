@@ -4,7 +4,8 @@
     "api/snapshot.js": { "maxDuration": 60 },
     "api/check.js": { "maxDuration": 60 },
     "api/accuracy.js": { "maxDuration": 10 },
-    "api/verify.js": { "maxDuration": 60 }
+    "api/verify.js": { "maxDuration": 60 },
+    "api/reset.js": { "maxDuration": 10 }
   },
   "crons": [
     {
