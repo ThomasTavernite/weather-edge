@@ -47,7 +47,7 @@ async function safeFetch(url, timeout) {
 }
 
 async function getOpenMeteo(city) {
-  var url = 'https://api.open-meteo.com/v1/forecast?latitude=' + city.lat + '&longitude=' + city.lon + '&daily=temperature_2m_max,temperature_2m_min&temperature_unit=fahrenheit&timezone=auto&forecast_days=3&models=best_match,hrrr_conus';
+  var url = 'https://api.open-meteo.com/v1/forecast?latitude=' + city.lat + '&longitude=' + city.lon + '&daily=temperature_2m_max,temperature_2m_min&temperature_unit=fahrenheit&timezone=auto&forecast_days=3';
   var data = await safeFetch(url);
   if (!data || !data.daily) return null;
   var result = {};
