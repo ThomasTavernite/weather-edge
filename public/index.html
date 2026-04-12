@@ -5,6 +5,16 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>WeatherQuant — Forecast-Powered Market Signals</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='0'%3E%3Cstop offset='0%25' stop-color='%234dd0e1'/%3E%3Cstop offset='50%25' stop-color='%2366bbff'/%3E%3Cstop offset='100%25' stop-color='%23a855f7'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect rx='18' width='100' height='100' fill='%230a0e17'/%3E%3Cpolyline points='8,58 25,58 35,38 45,72 55,28 65,62 78,42 92,58' fill='none' stroke='url(%23g)' stroke-width='6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<meta name="description" content="Real-time forecast signals for Kalshi weather markets. We compare what forecasters predict vs what traders are pricing. Find divergences, trade smarter.">
+<meta property="og:title" content="WeatherQuant — Forecast-Powered Market Signals">
+<meta property="og:description" content="We compare weather forecasts against Kalshi market prices in real time. When they disagree, that's your signal to investigate.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://weather-edge-rose.vercel.app">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:site" content="@WeatherQuant">
+<meta name="twitter:title" content="WeatherQuant — Forecast-Powered Market Signals">
+<meta name="twitter:description" content="Real-time forecast signals for Kalshi weather markets. Spot divergences between forecasts and market prices.">
+<meta name="theme-color" content="#0a0e17">
 <style>
   *{margin:0;padding:0;box-sizing:border-box}
   body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0a0e17;color:#e1e4ea;min-height:100vh}
@@ -110,7 +120,7 @@
   .trust-card a{color:#3b82f6;text-decoration:none;font-size:11px}
   .trust-card a:hover{text-decoration:underline}
   .accuracy-section{margin-top:32px}
-  .stat-box{background:#0a0e17;border:1px solid #1e293b;border-radius:10px;padding:16px 20px;text-align:center;min-width:120px}
+  .stat-box{background:#0a0e17;border:1px solid #1e293b;border-radius:10px;padding:16px 20px;text-align:center;min-width:120px;flex:1}
   .stat-box .stat-val{font-size:28px;font-weight:700;color:#3b82f6}
   .stat-box .stat-val.green{color:#22c55e}
   .stat-box .stat-label{font-size:11px;color:#64748b;margin-top:4px}
@@ -125,9 +135,50 @@
   .disclaimer h3{font-size:14px;color:#94a3b8;margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px}
   .disclaimer p{font-size:12px;color:#475569;line-height:1.7;margin-bottom:8px}
   .footer{text-align:center;padding:32px 24px;font-size:12px;color:#475569;border-top:1px solid #1e293b;margin-top:40px}
+  .skeleton-card{background:#111827;border:1px solid #1e293b;border-radius:12px;padding:20px;height:220px}
+  .skeleton-line{background:linear-gradient(90deg,#1e293b 25%,#2a3548 50%,#1e293b 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;border-radius:6px;height:14px;margin-bottom:10px}
+  .skeleton-line.w60{width:60%}
+  .skeleton-line.w40{width:40%}
+  .skeleton-line.w80{width:80%}
+  .skeleton-line.h28{height:28px;width:30%;margin-left:auto}
+  .skeleton-line.h20{height:20px;width:50%}
+  @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+  .time-notice{text-align:center;padding:12px 20px;background:#111827;border:1px solid #1e293b;border-radius:10px;margin-bottom:20px;font-size:13px;color:#64748b}
+  .site-tagline{font-size:14px;color:#94a3b8;margin-bottom:24px;line-height:1.6}
   .footer a{color:#3b82f6;text-decoration:none}
   .footer a:hover{text-decoration:underline}
-  @media(max-width:500px){.city-grid{grid-template-columns:1fr}.header{padding:16px}.container{padding:16px}}
+  @media(max-width:500px){
+    .city-grid{grid-template-columns:1fr}
+    .header{padding:14px 16px}
+    .container{padding:16px}
+    .logo h1{font-size:18px}
+    .logo-sub{font-size:10px}
+    .header-right{font-size:11px}
+    .city-name{font-size:16px}
+    .current-temp{font-size:24px}
+    .signal-detail{font-size:11px}
+    .forecast-chip{min-width:70px;padding:5px 8px;font-size:11px}
+    .market-date-badge{font-size:10px;padding:3px 8px}
+    .kalshi-link{padding:10px 16px;font-size:14px;width:100%;text-align:center;display:block}
+    .modal{padding:20px;border-radius:12px}
+    .modal-overlay{padding:20px 12px}
+    .modal-header h2{font-size:18px}
+    .bracket-table td,.bracket-table th{padding:8px 10px;font-size:13px}
+    .trust-grid{grid-template-columns:1fr 1fr}
+    .stat-box{min-width:auto;padding:12px}
+    .stat-box .stat-val{font-size:22px}
+    .how-it-works{padding:16px}
+    .how-step{gap:10px}
+    .step-text p{font-size:12px}
+    .tomorrow-header h2{font-size:17px}
+    .site-tagline{font-size:13px}
+    .disclaimer p{font-size:11px}
+  }
+  @media(max-width:360px){
+    .trust-grid{grid-template-columns:1fr}
+    .forecast-row{gap:6px}
+    .card-top{flex-direction:column;gap:8px}
+  }
 </style>
 </head>
 <body>
@@ -149,13 +200,24 @@
       <div class="how-step"><div class="step-num">5</div><div class="step-text"><h3>Divergence ≠ guaranteed profit</h3><p>Weather models can be wrong. Kalshi settles on the <strong style="color:#e1e4ea">official NWS Daily Climate Report</strong> — not forecasts. A divergence means "worth investigating," not "free money." Never trade more than you can afford to lose.</p></div></div>
     </div>
   </div>
-  <div id="mainContent"><div class="loading-container"><div class="spinner"></div><h2>Fetching live data...</h2><p>Pulling forecasts from Open-Meteo, prices from Kalshi</p></div></div>
+  <div class="site-tagline">We compare weather forecasts against Kalshi market prices in real time. When they disagree, it's worth investigating.</div>
+  <div id="timeNotice"></div>
+  <div id="mainContent">
+    <div class="city-grid">
+      <div class="skeleton-card"><div class="skeleton-line h20"></div><div class="skeleton-line h28"></div><div class="skeleton-line w80"></div><div class="skeleton-line w60"></div><div class="skeleton-line w40"></div></div>
+      <div class="skeleton-card"><div class="skeleton-line h20"></div><div class="skeleton-line h28"></div><div class="skeleton-line w80"></div><div class="skeleton-line w60"></div><div class="skeleton-line w40"></div></div>
+      <div class="skeleton-card"><div class="skeleton-line h20"></div><div class="skeleton-line h28"></div><div class="skeleton-line w80"></div><div class="skeleton-line w60"></div><div class="skeleton-line w40"></div></div>
+      <div class="skeleton-card"><div class="skeleton-line h20"></div><div class="skeleton-line h28"></div><div class="skeleton-line w80"></div><div class="skeleton-line w60"></div><div class="skeleton-line w40"></div></div>
+      <div class="skeleton-card"><div class="skeleton-line h20"></div><div class="skeleton-line h28"></div><div class="skeleton-line w80"></div><div class="skeleton-line w60"></div><div class="skeleton-line w40"></div></div>
+      <div class="skeleton-card"><div class="skeleton-line h20"></div><div class="skeleton-line h28"></div><div class="skeleton-line w80"></div><div class="skeleton-line w60"></div><div class="skeleton-line w40"></div></div>
+    </div>
+  </div>
   <div id="tomorrowContent"></div>
   <div class="accuracy-section" id="accuracySection" style="display:none">
     <div class="trust-section" style="margin-top:0;margin-bottom:0">
       <h3>📊 Track Record — Verified Accuracy</h3>
       <p style="font-size:12px;color:#64748b;margin-bottom:16px">Every day, we snapshot our forecast consensus before the market settles. The next morning, we compare it to the official NWS result. This data is logged automatically — no cherry-picking, no editing.</p>
-      <div id="accuracyStats" style="display:flex;gap:24px;flex-wrap:wrap;margin-bottom:20px"></div>
+      <div id="accuracyStats" style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:20px"></div>
       <div id="accuracyHistory"></div>
     </div>
   </div>
@@ -179,6 +241,7 @@
 <div class="footer">
   <p>WeatherQuant is not financial advice. Markets settle via <a href="https://help.kalshi.com/markets/popular-markets/weather-markets" target="_blank">NWS Daily Climate Reports</a>.</p>
   <p style="margin-top:8px">Trade on <a href="https://kalshi.com/category/climate" target="_blank">Kalshi</a> — CFTC regulated prediction markets.</p>
+  <p style="margin-top:12px">Follow us on <a href="https://x.com/WeatherQuant" target="_blank">𝕏 @WeatherQuant</a></p>
 </div>
 <script>
 var KALSHI_URLS={nyc:'https://kalshi.com/markets/kxhighny/highest-temperature-in-nyc',chi:'https://kalshi.com/markets/kxhighchi/highest-temperature-in-chicago',mia:'https://kalshi.com/markets/kxhighmia/highest-temperature-in-miami',lax:'https://kalshi.com/markets/kxhighlax/highest-temperature-in-los-angeles',sfo:'https://kalshi.com/markets/kxhightsfo/san-francisco-high-temperature-daily',phi:'https://kalshi.com/markets/kxhighphil/highest-temperature-in-philadelphia',aus:'https://kalshi.com/markets/kxhighaus/highest-temperature-in-austin',den:'https://kalshi.com/markets/kxhighden/highest-temperature-in-denver',sea:'https://kalshi.com/markets/kxhightsea/seattle-maximum-temperature-daily',lv:'https://kalshi.com/markets/kxhightlv/las-vegas-max-daily-temperature',bos:'https://kalshi.com/markets/kxhightbos/boston-maximum-daily-temperature',nola:'https://kalshi.com/markets/kxhightnola/new-orleans-max-temp-daily',dc:'https://kalshi.com/markets/kxhightdc/washington-dc-daily-max-temp'};
@@ -226,9 +289,22 @@ function loadOverview(){
     document.getElementById('tomorrowContent').innerHTML=th;
   }).catch(function(e){
     console.error('Load failed:',e);
-    document.getElementById('mainContent').innerHTML='<div class="loading-container"><h2>Loading data...</h2><p>Retrying in 10 seconds...</p></div>';
+    document.getElementById('mainContent').innerHTML='<div class="loading-container"><h2>Connecting to data...</h2><p>Retrying in 10 seconds...</p></div>';
     setTimeout(loadOverview,10000);
   });
+}
+
+function updateTimeNotice(){
+  var now=new Date();
+  var etHour=parseInt(now.toLocaleString('en-US',{hour:'numeric',hour12:false,timeZone:'America/New_York'}));
+  var notice=document.getElementById('timeNotice');
+  if(etHour>=22||etHour<6){
+    notice.innerHTML='<div class="time-notice">🌙 Markets are quieter overnight. Today\'s markets have settled and tomorrow\'s may have limited trading activity. Most active hours are <strong>10 AM – 10 PM ET</strong>.</div>';
+  }else if(etHour>=6&&etHour<10){
+    notice.innerHTML='<div class="time-notice">🌅 Early morning — markets are opening up. Trading activity increases after <strong>10 AM ET</strong> as new forecasts come in and traders start placing bids.</div>';
+  }else{
+    notice.innerHTML='';
+  }
 }
 
 function renderCard(c,period){
@@ -238,7 +314,8 @@ function renderCard(c,period){
   var forecasts=isTom?c.forecastsTomorrow:c.forecastsToday;
   var consensus=isTom?c.consensusTomorrow:c.consensusToday;
   var dateStr=isTom?c.forecastDateTomorrow:c.forecastDate;
-  var temp=c.currentTemp!=null?Math.round(c.currentTemp)+'<span class="unit">°F</span>':'--';
+  var temp=c.currentTemp!=null?Math.round(c.currentTemp)+'<span class="unit">°F</span>':'';
+  var tempBlock=c.currentTemp!=null?'<div style="text-align:right"><div class="current-temp">'+temp+'</div><div class="current-desc">'+(c.currentDesc||'Current')+'</div></div>':'';
   var url=getKalshiUrl(c.id,kalshi);
   var dateBadge='<div class="market-date-badge">📅 '+formatDate(dateStr)+'</div>';
   var badge='<span class="signal-badge nodata">NO SIGNAL</span>';
@@ -247,7 +324,7 @@ function renderCard(c,period){
     if(signal.type==='DIVERGENCE'){badge='<span class="signal-badge divergence">⚡ DIVERGENCE</span>';detail='Our forecast → <strong>'+signal.consensusBracket+'</strong> ('+formatPrice(signal.consensusBracketPrice)+') · Market favors <strong>'+signal.marketFavorite+'</strong> ('+formatPrice(signal.marketFavoritePrice)+') · Investigate before trading';}
     else{badge='<span class="signal-badge aligned">✓ ALIGNED</span>';detail='Forecasts & market agree: <strong>'+signal.marketFavorite+'</strong> at '+formatPrice(signal.marketFavoritePrice);}
   }
-  return '<div class="city-card'+(isTom?' tomorrow':'')+'" onclick="openCity(\''+c.id+'\',\''+period+'\')">'+'<div class="card-top"><div><div class="city-name">'+c.name+'</div>'+badge+'</div><div style="text-align:right"><div class="current-temp">'+temp+'</div><div class="current-desc">'+(c.currentDesc||'Current')+'</div></div></div>'+dateBadge+'<div class="forecast-row">'+(forecasts||[]).map(function(f){return'<div class="forecast-chip"><span class="src">'+f.source+'</span><span class="val">H: '+(f.high!=null?f.high+'°':'--')+'</span></div>'}).join('')+(consensus&&consensus.high!=null?'<div class="forecast-chip consensus"><span class="src">Consensus</span><span class="val">'+consensus.high+'°F</span></div>':'')+'</div>'+(detail?'<div class="signal-detail">'+detail+'</div>':'')+'<a href="'+url+'" target="_blank" class="kalshi-link" onclick="event.stopPropagation()">Trade on Kalshi →</a></div>';
+  return '<div class="city-card'+(isTom?' tomorrow':'')+'" onclick="openCity(\''+c.id+'\',\''+period+'\')">'+'<div class="card-top"><div><div class="city-name">'+c.name+'</div>'+badge+'</div>'+tempBlock+'</div>'+dateBadge+'<div class="forecast-row">'+(forecasts||[]).map(function(f){return'<div class="forecast-chip"><span class="src">'+f.source+'</span><span class="val">H: '+(f.high!=null?f.high+'°':'--')+'</span></div>'}).join('')+(consensus&&consensus.high!=null?'<div class="forecast-chip consensus"><span class="src">Consensus</span><span class="val">'+consensus.high+'°F</span></div>':'')+'</div>'+(detail?'<div class="signal-detail">'+detail+'</div>':'')+'<a href="'+url+'" target="_blank" class="kalshi-link" onclick="event.stopPropagation()">Trade on Kalshi →</a></div>';
 }
 
 function openCity(id,period){
@@ -300,8 +377,9 @@ function loadAccuracy(){
 
 setInterval(function(){var now=new Date();document.getElementById('liveClock').textContent=now.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',second:'2-digit'});if(nextRefreshIn>0)nextRefreshIn--;var m=Math.floor(nextRefreshIn/60),s=nextRefreshIn%60;document.getElementById('refreshCountdown').textContent=nextRefreshIn>0?'Next refresh in '+m+':'+(s<10?'0':'')+s:'Refreshing...';},1000);
 
-loadOverview();loadAccuracy();
+loadOverview();loadAccuracy();updateTimeNotice();
 setInterval(loadOverview,120000);
+setInterval(updateTimeNotice,300000);
 </script>
 </body>
 </html>
