@@ -1,6 +1,6 @@
 // ═══════════════════════════════════════════════════════════
-//  WeatherQuant — api/overview.js
-//  Returns BOTH today's and tomorrow's markets for each city
+//  WeatherQuant — api/overview.js (v2)
+//  Multi-model forecasts + smart divergence filtering
 //  Sequential Kalshi calls to avoid rate limits
 // ═══════════════════════════════════════════════════════════
 
@@ -19,6 +19,9 @@ var CITIES = [
   { id: 'nola',  name: 'New Orleans',    lat: 29.9934,  lon: -90.2580,  nws: 'KMSY', kalshi: 'KXHIGHTNOLA'},
   { id: 'dc',    name: 'Washington DC',  lat: 38.8512,  lon: -77.0402,  nws: 'KDCA', kalshi: 'KXHIGHTDC'  },
 ];
+
+// Models to query from Open-Meteo (each is an independent weather model)
+var MODELS = ['gfs_seamless', 'ecmwf_ifs025', 'icon_seamless'];
 
 function getTodayStr() {
   return new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
@@ -46,13 +49,66 @@ async function safeFetch(url, timeout) {
   }
 }
 
-async function getOpenMeteo(city) {
-  var url = 'https://api.open-meteo.com/v1/forecast?latitude=' + city.lat + '&longitude=' + city.lon + '&daily=temperature_2m_max,temperature_2m_min&temperature_unit=fahrenheit&timezone=auto&forecast_days=3';
-  var data = await safeFetch(url);
-  if (!data || !data.daily) return null;
+// ─── Multi-model forecasts from Open-Meteo ───────────────
+// Returns { "2026-04-14": { highs: [{source, temp},...], lows: [{source, temp},...] }, ... }
+async function getMultiModelForecasts(city) {
+  var modelsParam = MODELS.join(',');
+  var url = 'https://api.open-meteo.com/v1/forecast?latitude=' + city.lat
+    + '&longitude=' + city.lon
+    + '&daily=temperature_2m_max,temperature_2m_min'
+    + '&temperature_unit=fahrenheit&timezone=auto&forecast_days=3'
+    + '&models=' + modelsParam;
+
+  var data = await safeFetch(url, 8000);
+  if (!data) return null;
+
   var result = {};
-  for (var i = 0; i < data.daily.time.length; i++) {
-    result[data.daily.time[i]] = { high: data.daily.temperature_2m_max[i], low: data.daily.temperature_2m_min[i] };
+  // When using &models=, Open-Meteo returns per-model keys like:
+  //   temperature_2m_max_gfs_seamless, temperature_2m_max_ecmwf_ifs025, etc.
+  // The "daily" block contains all of them plus a "time" array
+  var daily = data.daily;
+  if (!daily || !daily.time) return null;
+
+  var modelNames = {
+    'gfs_seamless': 'GFS',
+    'ecmwf_ifs025': 'ECMWF',
+    'icon_seamless': 'ICON'
+  };
+
+  for (var d = 0; d < daily.time.length; d++) {
+    var date = daily.time[d];
+    result[date] = { highs: [], lows: [] };
+
+    for (var m = 0; m < MODELS.length; m++) {
+      var model = MODELS[m];
+      var highKey = 'temperature_2m_max_' + model;
+      var lowKey = 'temperature_2m_min_' + model;
+
+      // Open-Meteo may also return plain keys if only one model, so handle both
+      var highVal = daily[highKey] ? daily[highKey][d] : null;
+      var lowVal = daily[lowKey] ? daily[lowKey][d] : null;
+
+      if (highVal !== null && highVal !== undefined) {
+        result[date].highs.push({ source: modelNames[model] || model, temp: highVal });
+      }
+      if (lowVal !== null && lowVal !== undefined) {
+        result[date].lows.push({ source: modelNames[model] || model, temp: lowVal });
+      }
+    }
+
+    // Fallback: if multi-model keys didn't work, try the default keys
+    if (result[date].highs.length === 0 && daily.temperature_2m_max) {
+      var fallbackHigh = daily.temperature_2m_max[d];
+      if (fallbackHigh !== null && fallbackHigh !== undefined) {
+        result[date].highs.push({ source: 'Open-Meteo', temp: fallbackHigh });
+      }
+    }
+    if (result[date].lows.length === 0 && daily.temperature_2m_min) {
+      var fallbackLow = daily.temperature_2m_min[d];
+      if (fallbackLow !== null && fallbackLow !== undefined) {
+        result[date].lows.push({ source: 'Open-Meteo', temp: fallbackLow });
+      }
+    }
   }
   return result;
 }
@@ -99,8 +155,43 @@ function getMarketPrice(m) {
   return Math.max(last, ask);
 }
 
-function buildSignal(consensusHigh, kalshiData) {
-  if (!kalshiData || !kalshiData.markets || !kalshiData.markets.length || consensusHigh === null) return null;
+// ─── Compute consensus from multiple model forecasts ─────
+// Returns { high, low, sourceCount, spread, sources[] }
+function computeConsensus(modelData, dateStr) {
+  if (!modelData || !modelData[dateStr]) return { high: null, low: null, sourceCount: 0, spread: 0, sources: [] };
+
+  var entry = modelData[dateStr];
+  var highs = entry.highs.map(function(h) { return h.temp; });
+  var lows = entry.lows.map(function(l) { return l.temp; });
+  var sources = entry.highs.map(function(h) { return h.source; });
+
+  var avgHigh = highs.length ? Math.round(highs.reduce(function(a, b) { return a + b; }, 0) / highs.length * 10) / 10 : null;
+  var avgLow = lows.length ? Math.round(lows.reduce(function(a, b) { return a + b; }, 0) / lows.length * 10) / 10 : null;
+
+  // Spread = max difference between model forecasts (measures agreement)
+  var spread = 0;
+  if (highs.length > 1) {
+    var maxH = Math.max.apply(null, highs);
+    var minH = Math.min.apply(null, highs);
+    spread = Math.round((maxH - minH) * 10) / 10;
+  }
+
+  return {
+    high: avgHigh,
+    low: avgLow,
+    sourceCount: highs.length,
+    spread: spread,
+    sources: sources,
+    individualHighs: highs
+  };
+}
+
+// ─── Smart signal builder ────────────────────────────────
+function buildSignal(consensus, kalshiData) {
+  if (!kalshiData || !kalshiData.markets || !kalshiData.markets.length || consensus.high === null) return null;
+
+  var consensusHigh = consensus.high;
+
   var sorted = kalshiData.markets.slice().sort(function(a, b) {
     return getMarketPrice(b) - getMarketPrice(a);
   });
@@ -108,22 +199,33 @@ function buildSignal(consensusHigh, kalshiData) {
   var favPrice = getMarketPrice(fav);
   if (favPrice <= 0.01) return null;
 
-  // Calculate total volume for liquidity assessment
+  // ── Gate 1: Market already settled or near-certain ──
+  // If the top bracket is $0.90+, the market is decided. No actionable signal.
+  if (favPrice >= 0.90) {
+    return {
+      type: 'SETTLED',
+      consensusBracket: null,
+      consensusBracketPrice: null,
+      marketFavorite: fav.subtitle,
+      marketFavoritePrice: favPrice,
+      confidence: null,
+      totalVolume: 0,
+      priceSpread: 0,
+      nearBoundary: false,
+      reason: 'Market is settled or near-certain'
+    };
+  }
+
+  // Calculate total volume
   var totalVolume = 0;
   for (var v = 0; v < kalshiData.markets.length; v++) {
     totalVolume += parseInt(kalshiData.markets[v].volume) || 0;
   }
 
-  // Check price spread between top two brackets
   var secondPrice = sorted.length > 1 ? getMarketPrice(sorted[1]) : 0;
   var priceSpread = favPrice - secondPrice;
 
-  // Determine confidence level
-  var confidence = 'HIGH';
-  if (totalVolume < 500) confidence = 'LOW';
-  else if (totalVolume < 2000) confidence = 'MODERATE';
-  if (priceSpread < 0.05 && confidence !== 'LOW') confidence = 'MODERATE';
-
+  // ── Find which bracket the consensus falls into ──
   var match = null;
   for (var i = 0; i < kalshiData.markets.length; i++) {
     var m = kalshiData.markets[i];
@@ -137,25 +239,91 @@ function buildSignal(consensusHigh, kalshiData) {
   }
   if (!match || !fav) return null;
 
-  // Check if forecast is near a bracket boundary (within 0.3°F)
+  var isMatch = match.ticker === fav.ticker;
+
+  // ── Gate 2: Single-source divergence suppression ──
+  // If we only have 1 model, don't trust divergence — show ALIGNED with a note
+  if (!isMatch && consensus.sourceCount < 2) {
+    return {
+      type: 'LOW_DATA',
+      consensusBracket: match.subtitle,
+      consensusBracketPrice: getMarketPrice(match),
+      marketFavorite: fav.subtitle,
+      marketFavoritePrice: favPrice,
+      confidence: 'LOW',
+      totalVolume: totalVolume,
+      priceSpread: Math.round(priceSpread * 100),
+      nearBoundary: false,
+      reason: 'Only 1 forecast source — not enough data to call divergence'
+    };
+  }
+
+  // ── Gate 3: Tiny price spread = noise ──
+  if (!isMatch && priceSpread < 0.03) {
+    isMatch = true; // Downgrade to ALIGNED
+  }
+
+  // ── Gate 4: Model disagreement check ──
+  // If models themselves disagree by 3°F+, signal is unreliable
+  if (!isMatch && consensus.spread >= 3) {
+    return {
+      type: 'UNCERTAIN',
+      consensusBracket: match.subtitle,
+      consensusBracketPrice: getMarketPrice(match),
+      marketFavorite: fav.subtitle,
+      marketFavoritePrice: favPrice,
+      confidence: 'LOW',
+      totalVolume: totalVolume,
+      priceSpread: Math.round(priceSpread * 100),
+      nearBoundary: false,
+      modelSpread: consensus.spread,
+      reason: 'Forecast models disagree by ' + consensus.spread + '°F — signal unreliable'
+    };
+  }
+
+  // ── Gate 5: Low volume suppression ──
+  // Markets with very low volume have unreliable prices
+  if (!isMatch && totalVolume < 50) {
+    return {
+      type: 'LOW_VOLUME',
+      consensusBracket: match.subtitle,
+      consensusBracketPrice: getMarketPrice(match),
+      marketFavorite: fav.subtitle,
+      marketFavoritePrice: favPrice,
+      confidence: 'LOW',
+      totalVolume: totalVolume,
+      priceSpread: Math.round(priceSpread * 100),
+      nearBoundary: false,
+      reason: 'Market volume too low for reliable signal'
+    };
+  }
+
+  // ── Confidence level for valid signals ──
+  var confidence = 'HIGH';
+  if (totalVolume < 500) confidence = 'LOW';
+  else if (totalVolume < 2000) confidence = 'MODERATE';
+  if (priceSpread < 0.05 && confidence !== 'LOW') confidence = 'MODERATE';
+  // Boost confidence if all models agree tightly
+  if (consensus.spread <= 1 && consensus.sourceCount >= 3 && confidence === 'MODERATE') confidence = 'HIGH';
+
+  // Boundary check
   var nearBoundary = false;
   var fracPart = consensusHigh % 1;
   if (fracPart >= 0.7 || fracPart <= 0.3) nearBoundary = true;
 
-  // If price spread is less than 3¢, don't declare a meaningful divergence
-  var signalType = match.ticker === fav.ticker ? 'ALIGNED' : 'DIVERGENCE';
-  if (signalType === 'DIVERGENCE' && priceSpread < 0.03) signalType = 'ALIGNED';
-
   return {
-    type: signalType,
+    type: isMatch ? 'ALIGNED' : 'DIVERGENCE',
     consensusBracket: match.subtitle,
     consensusBracketPrice: getMarketPrice(match),
     marketFavorite: fav.subtitle,
-    marketFavoritePrice: getMarketPrice(fav),
+    marketFavoritePrice: favPrice,
     confidence: confidence,
     totalVolume: totalVolume,
     priceSpread: Math.round(priceSpread * 100),
-    nearBoundary: nearBoundary
+    nearBoundary: nearBoundary,
+    modelSpread: consensus.spread,
+    sourceCount: consensus.sourceCount,
+    reason: null
   };
 }
 
@@ -190,34 +358,40 @@ export default async function handler(req, res) {
       await new Promise(function(r) { setTimeout(r, 200); });
     }
 
-    // Step 2: Fetch weather data in parallel
+    // Step 2: Fetch weather data in parallel (multi-model)
     var results = await Promise.all(CITIES.map(async function(city) {
-      var openMeteoMap = await getOpenMeteo(city);
+      var modelData = await getMultiModelForecasts(city);
       var observation = null;
       try { observation = await getNWSObservation(city); } catch(e) {}
 
       var kalshiToday = kalshiTodayMap[city.id];
       var kalshiTomorrow = kalshiTomorrowMap[city.id];
 
-      // Today's forecasts
-      var forecastsToday = [];
-      if (openMeteoMap && openMeteoMap[today]) {
-        forecastsToday.push({ source: 'Open-Meteo', high: openMeteoMap[today].high, low: openMeteoMap[today].low });
-      }
-      var highsToday = forecastsToday.filter(function(f) { return f.high != null; }).map(function(f) { return f.high; });
-      var lowsToday = forecastsToday.filter(function(f) { return f.low != null; }).map(function(f) { return f.low; });
-      var consensusHighToday = highsToday.length ? Math.round(highsToday.reduce(function(a,b){return a+b;},0) / highsToday.length * 10) / 10 : null;
-      var consensusLowToday = lowsToday.length ? Math.round(lowsToday.reduce(function(a,b){return a+b;},0) / lowsToday.length * 10) / 10 : null;
+      // Compute consensus from all models
+      var consensusToday = computeConsensus(modelData, today);
+      var consensusTomorrow = computeConsensus(modelData, tomorrow);
 
-      // Tomorrow's forecasts
-      var forecastsTomorrow = [];
-      if (openMeteoMap && openMeteoMap[tomorrow]) {
-        forecastsTomorrow.push({ source: 'Open-Meteo', high: openMeteoMap[tomorrow].high, low: openMeteoMap[tomorrow].low });
+      // Build source list for frontend display
+      var forecastsToday = [];
+      if (modelData && modelData[today]) {
+        for (var i = 0; i < modelData[today].highs.length; i++) {
+          forecastsToday.push({
+            source: modelData[today].highs[i].source,
+            high: modelData[today].highs[i].temp,
+            low: modelData[today].lows[i] ? modelData[today].lows[i].temp : null
+          });
+        }
       }
-      var highsTom = forecastsTomorrow.filter(function(f) { return f.high != null; }).map(function(f) { return f.high; });
-      var lowsTom = forecastsTomorrow.filter(function(f) { return f.low != null; }).map(function(f) { return f.low; });
-      var consensusHighTomorrow = highsTom.length ? Math.round(highsTom.reduce(function(a,b){return a+b;},0) / highsTom.length * 10) / 10 : null;
-      var consensusLowTomorrow = lowsTom.length ? Math.round(lowsTom.reduce(function(a,b){return a+b;},0) / lowsTom.length * 10) / 10 : null;
+      var forecastsTomorrow = [];
+      if (modelData && modelData[tomorrow]) {
+        for (var j = 0; j < modelData[tomorrow].highs.length; j++) {
+          forecastsTomorrow.push({
+            source: modelData[tomorrow].highs[j].source,
+            high: modelData[tomorrow].highs[j].temp,
+            low: modelData[tomorrow].lows[j] ? modelData[tomorrow].lows[j].temp : null
+          });
+        }
+      }
 
       return {
         id: city.id, name: city.name,
@@ -226,15 +400,19 @@ export default async function handler(req, res) {
         // Today
         forecastsToday: forecastsToday,
         forecastDate: today,
-        consensusToday: { high: consensusHighToday, low: consensusLowToday },
+        consensusToday: { high: consensusToday.high, low: consensusToday.low },
         kalshiToday: kalshiToday,
-        signalToday: buildSignal(consensusHighToday, kalshiToday),
+        signalToday: buildSignal(consensusToday, kalshiToday),
+        sourceCountToday: consensusToday.sourceCount,
+        modelSpreadToday: consensusToday.spread,
         // Tomorrow
         forecastsTomorrow: forecastsTomorrow,
         forecastDateTomorrow: tomorrow,
-        consensusTomorrow: { high: consensusHighTomorrow, low: consensusLowTomorrow },
+        consensusTomorrow: { high: consensusTomorrow.high, low: consensusTomorrow.low },
         kalshiTomorrow: kalshiTomorrow,
-        signalTomorrow: buildSignal(consensusHighTomorrow, kalshiTomorrow),
+        signalTomorrow: buildSignal(consensusTomorrow, kalshiTomorrow),
+        sourceCountTomorrow: consensusTomorrow.sourceCount,
+        modelSpreadTomorrow: consensusTomorrow.spread,
       };
     }));
 

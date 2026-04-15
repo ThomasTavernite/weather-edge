@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════════════════════
-//  WeatherQuant — api/snapshot.js
+//  WeatherQuant — api/snapshot.js (v2)
 //  Runs daily via Vercel Cron at 10 PM ET
-//  Saves today's forecast consensus + Kalshi market favorite
+//  Saves multi-model forecast consensus + Kalshi market favorite
 //  for each city so we can check accuracy tomorrow
 // ═══════════════════════════════════════════════════════════
 
@@ -26,6 +26,9 @@ const CITIES = [
   { id: 'nola',  name: 'New Orleans',    lat: 29.9934,  lon: -90.2580,  kalshi: 'KXHIGHTNOLA'},
   { id: 'dc',    name: 'Washington DC',  lat: 38.8512,  lon: -77.0402,  kalshi: 'KXHIGHTDC'  },
 ];
+
+const MODELS = ['gfs_seamless', 'ecmwf_ifs025', 'icon_seamless'];
+const MODEL_NAMES = { 'gfs_seamless': 'GFS', 'ecmwf_ifs025': 'ECMWF', 'icon_seamless': 'ICON' };
 
 function getTodayStr() {
   return new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
@@ -53,15 +56,66 @@ async function safeFetch(url, timeout) {
   }
 }
 
-async function getOpenMeteo(city) {
-  var url = 'https://api.open-meteo.com/v1/forecast?latitude=' + city.lat + '&longitude=' + city.lon + '&daily=temperature_2m_max,temperature_2m_min&temperature_unit=fahrenheit&timezone=auto&forecast_days=3';
-  var data = await safeFetch(url);
-  if (!data || !data.daily) return null;
+// Multi-model forecast — returns { "2026-04-14": { highs: [{source, temp}], lows: [...] } }
+async function getMultiModelForecasts(city) {
+  var url = 'https://api.open-meteo.com/v1/forecast?latitude=' + city.lat
+    + '&longitude=' + city.lon
+    + '&daily=temperature_2m_max,temperature_2m_min'
+    + '&temperature_unit=fahrenheit&timezone=auto&forecast_days=3'
+    + '&models=' + MODELS.join(',');
+
+  var data = await safeFetch(url, 8000);
+  if (!data || !data.daily || !data.daily.time) return null;
+
+  var daily = data.daily;
   var result = {};
-  for (var i = 0; i < data.daily.time.length; i++) {
-    result[data.daily.time[i]] = { high: data.daily.temperature_2m_max[i], low: data.daily.temperature_2m_min[i] };
+
+  for (var d = 0; d < daily.time.length; d++) {
+    var date = daily.time[d];
+    result[date] = { highs: [], lows: [] };
+
+    for (var m = 0; m < MODELS.length; m++) {
+      var model = MODELS[m];
+      var highVal = daily['temperature_2m_max_' + model] ? daily['temperature_2m_max_' + model][d] : null;
+      var lowVal = daily['temperature_2m_min_' + model] ? daily['temperature_2m_min_' + model][d] : null;
+
+      if (highVal !== null && highVal !== undefined) {
+        result[date].highs.push({ source: MODEL_NAMES[model] || model, temp: highVal });
+      }
+      if (lowVal !== null && lowVal !== undefined) {
+        result[date].lows.push({ source: MODEL_NAMES[model] || model, temp: lowVal });
+      }
+    }
+
+    // Fallback to default keys if multi-model didn't return
+    if (result[date].highs.length === 0 && daily.temperature_2m_max) {
+      var fb = daily.temperature_2m_max[d];
+      if (fb !== null && fb !== undefined) result[date].highs.push({ source: 'Open-Meteo', temp: fb });
+    }
+    if (result[date].lows.length === 0 && daily.temperature_2m_min) {
+      var fbl = daily.temperature_2m_min[d];
+      if (fbl !== null && fbl !== undefined) result[date].lows.push({ source: 'Open-Meteo', temp: fbl });
+    }
   }
   return result;
+}
+
+function computeConsensus(modelData, dateStr) {
+  if (!modelData || !modelData[dateStr]) return { high: null, low: null, sourceCount: 0, spread: 0, sources: [] };
+  var entry = modelData[dateStr];
+  var highs = entry.highs.map(function(h) { return h.temp; });
+  var lows = entry.lows.map(function(l) { return l.temp; });
+  var sources = entry.highs.map(function(h) { return h.source; });
+
+  var avgHigh = highs.length ? Math.round(highs.reduce(function(a, b) { return a + b; }, 0) / highs.length * 10) / 10 : null;
+  var avgLow = lows.length ? Math.round(lows.reduce(function(a, b) { return a + b; }, 0) / lows.length * 10) / 10 : null;
+
+  var spread = 0;
+  if (highs.length > 1) {
+    spread = Math.round((Math.max.apply(null, highs) - Math.min.apply(null, highs)) * 10) / 10;
+  }
+
+  return { high: avgHigh, low: avgLow, sourceCount: highs.length, spread: spread, sources: sources };
 }
 
 async function getKalshi(seriesTicker) {
@@ -84,7 +138,6 @@ async function getKalshi(seriesTicker) {
     }
     if (marketDate !== today && marketDate !== tomorrow) continue;
 
-    // Find the market favorite (highest priced bracket)
     var sorted = ev.markets.slice().sort(function(a, b) {
       var pa = parseFloat(a.last_price_dollars || a.last_price) || parseFloat(a.yes_ask_dollars || a.yes_ask) || 0;
       var pb = parseFloat(b.last_price_dollars || b.last_price) || parseFloat(b.yes_ask_dollars || b.yes_ask) || 0;
@@ -92,11 +145,12 @@ async function getKalshi(seriesTicker) {
     });
 
     var fav = sorted[0];
+    var favPrice = parseFloat(fav.last_price_dollars || fav.last_price) || parseFloat(fav.yes_ask_dollars || fav.yes_ask) || 0;
     var result = {
       marketDate: marketDate,
       eventTicker: ev.event_ticker,
       marketFavorite: fav.yes_sub_title || fav.subtitle || '',
-      marketFavoritePrice: parseFloat(fav.last_price_dollars || fav.last_price) || parseFloat(fav.yes_ask_dollars || fav.yes_ask) || 0
+      marketFavoritePrice: favPrice
     };
 
     if (marketDate === today) todayEvent = result;
@@ -105,20 +159,9 @@ async function getKalshi(seriesTicker) {
   return todayEvent || tomorrowEvent || null;
 }
 
-function findConsensusBracket(consensusHigh, kalshiData) {
-  // We don't have bracket list here, so just return the consensus temp
-  // The check function will determine if it fell in the right bracket
-  return consensusHigh;
-}
-
 export default async function handler(req, res) {
-  // Simple auth to prevent random people from triggering this
-  // Vercel Cron sends a special header
-  var authHeader = req.headers['authorization'];
   var cronHeader = req.headers['x-vercel-cron'];
   var manualKey = req.query.key;
-
-  // Allow: Vercel Cron, or manual trigger with ?key=snapshot2026
   if (!cronHeader && manualKey !== 'snapshot2026') {
     return res.status(401).json({ error: 'Unauthorized' });
   }
@@ -129,36 +172,40 @@ export default async function handler(req, res) {
 
     for (var i = 0; i < CITIES.length; i++) {
       var city = CITIES[i];
-      var openMeteo = await getOpenMeteo(city);
+      var modelData = await getMultiModelForecasts(city);
       var kalshi = await getKalshi(city.kalshi);
 
       var targetDate = (kalshi && kalshi.marketDate) || today;
-      var forecastHigh = null;
+      var consensus = computeConsensus(modelData, targetDate);
 
-      if (openMeteo && openMeteo[targetDate]) {
-        forecastHigh = openMeteo[targetDate].high;
-      }
-
-      // Determine if this is a divergence or aligned
+      // Determine signal type
       var signalType = null;
-      if (forecastHigh !== null && kalshi) {
-        // Check if forecast falls in the market favorite bracket
+      if (consensus.high !== null && kalshi) {
         var favBracket = kalshi.marketFavorite.toLowerCase();
         var range = favBracket.match(/(\d+)°?\s*to\s*(\d+)/);
         var below = favBracket.match(/(\d+)°?\s*or\s*below/);
         var above = favBracket.match(/(\d+)°?\s*or\s*above/);
         var forecastInFav = false;
-        if (range && forecastHigh >= parseInt(range[1]) && forecastHigh <= parseInt(range[2]) + 0.9) forecastInFav = true;
-        if (below && forecastHigh <= parseInt(below[1]) + 0.9) forecastInFav = true;
-        if (above && forecastHigh >= parseInt(above[1])) forecastInFav = true;
-        signalType = forecastInFav ? 'ALIGNED' : 'DIVERGENCE';
+        if (range && consensus.high >= parseInt(range[1]) && consensus.high <= parseInt(range[2]) + 0.9) forecastInFav = true;
+        if (below && consensus.high <= parseInt(below[1]) + 0.9) forecastInFav = true;
+        if (above && consensus.high >= parseInt(above[1])) forecastInFav = true;
+
+        // Suppress divergence if market is settled ($0.90+)
+        if (forecastInFav || kalshi.marketFavoritePrice >= 0.90) {
+          signalType = forecastInFav ? 'ALIGNED' : 'SETTLED';
+        } else {
+          signalType = 'DIVERGENCE';
+        }
       }
 
       var snapshot = {
         cityId: city.id,
         cityName: city.name,
         targetDate: targetDate,
-        forecastHigh: forecastHigh,
+        forecastHigh: consensus.high,
+        sourceCount: consensus.sourceCount,
+        modelSpread: consensus.spread,
+        sources: consensus.sources,
         marketFavorite: kalshi ? kalshi.marketFavorite : null,
         marketFavoritePrice: kalshi ? kalshi.marketFavoritePrice : null,
         eventTicker: kalshi ? kalshi.eventTicker : null,
@@ -169,16 +216,12 @@ export default async function handler(req, res) {
       };
 
       snapshots.push(snapshot);
-
-      // Small delay between cities
       await new Promise(function(r) { setTimeout(r, 300); });
     }
 
-    // Save to KV: key = "snapshot:2026-04-06"
     var snapshotDate = snapshots[0] ? snapshots[0].targetDate : today;
     await kv.set('snapshot:' + snapshotDate, snapshots);
 
-    // Also maintain a list of all snapshot dates
     var dateList = await kv.get('snapshot_dates');
     var dates = [];
     if (dateList) {
