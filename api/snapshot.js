@@ -1,121 +1,131 @@
 // ═══════════════════════════════════════════════════════════
-//  WeatherQuant — api/snapshot.js (v2)
-//  Runs daily via Vercel Cron at 10 PM ET
-//  Saves multi-model forecast consensus + Kalshi market favorite
-//  for each city so we can check accuracy tomorrow
+//  WeatherQuant — api/snapshot.js (v3)
+//  Stores full ensemble distribution so check.js can score
+//  calibration (Brier) and update bias corrections
 // ═══════════════════════════════════════════════════════════
 
 import { kv } from '@vercel/kv';
 
-export const config = {
-  maxDuration: 60
-};
+export const config = { maxDuration: 60 };
 
-const CITIES = [
-  { id: 'nyc',   name: 'New York City',  lat: 40.7128,  lon: -74.0060,  kalshi: 'KXHIGHNY'   },
-  { id: 'chi',   name: 'Chicago',        lat: 41.7868,  lon: -87.7522,  kalshi: 'KXHIGHCHI'  },
-  { id: 'mia',   name: 'Miami',          lat: 25.7959,  lon: -80.2870,  kalshi: 'KXHIGHMIA'  },
-  { id: 'lax',   name: 'Los Angeles',    lat: 33.9382,  lon: -118.3886, kalshi: 'KXHIGHLAX'  },
-  { id: 'sfo',   name: 'San Francisco',  lat: 37.6213,  lon: -122.3790, kalshi: 'KXHIGHTSFO' },
-  { id: 'phi',   name: 'Philadelphia',   lat: 39.8744,  lon: -75.2424,  kalshi: 'KXHIGHPHIL' },
-  { id: 'aus',   name: 'Austin',         lat: 30.1944,  lon: -97.6700,  kalshi: 'KXHIGHAUS'  },
-  { id: 'den',   name: 'Denver',         lat: 39.8561,  lon: -104.6737, kalshi: 'KXHIGHDEN'  },
-  { id: 'sea',   name: 'Seattle',        lat: 47.4502,  lon: -122.3088, kalshi: 'KXHIGHTSEA' },
-  { id: 'lv',    name: 'Las Vegas',      lat: 36.0840,  lon: -115.1537, kalshi: 'KXHIGHTLV'  },
-  { id: 'bos',   name: 'Boston',         lat: 42.3656,  lon: -71.0096,  kalshi: 'KXHIGHTBOS' },
-  { id: 'nola',  name: 'New Orleans',    lat: 29.9934,  lon: -90.2580,  kalshi: 'KXHIGHTNOLA'},
-  { id: 'dc',    name: 'Washington DC',  lat: 38.8512,  lon: -77.0402,  kalshi: 'KXHIGHTDC'  },
+var CITIES = [
+  { id:'nyc',  name:'New York City',  lat:40.7128, lon:-74.0060,  kalshi:'KXHIGHNY',    tz:'America/New_York' },
+  { id:'chi',  name:'Chicago',        lat:41.7868, lon:-87.7522,  kalshi:'KXHIGHCHI',   tz:'America/Chicago' },
+  { id:'mia',  name:'Miami',          lat:25.7959, lon:-80.2870,  kalshi:'KXHIGHMIA',   tz:'America/New_York' },
+  { id:'lax',  name:'Los Angeles',    lat:33.9382, lon:-118.3886, kalshi:'KXHIGHLAX',   tz:'America/Los_Angeles' },
+  { id:'sfo',  name:'San Francisco',  lat:37.6213, lon:-122.3790, kalshi:'KXHIGHTSFO',  tz:'America/Los_Angeles' },
+  { id:'phi',  name:'Philadelphia',   lat:39.8744, lon:-75.2424,  kalshi:'KXHIGHPHIL',  tz:'America/New_York' },
+  { id:'aus',  name:'Austin',         lat:30.1944, lon:-97.6700,  kalshi:'KXHIGHAUS',   tz:'America/Chicago' },
+  { id:'den',  name:'Denver',         lat:39.8561, lon:-104.6737, kalshi:'KXHIGHDEN',   tz:'America/Denver' },
+  { id:'sea',  name:'Seattle',        lat:47.4502, lon:-122.3088, kalshi:'KXHIGHTSEA',  tz:'America/Los_Angeles' },
+  { id:'lv',   name:'Las Vegas',      lat:36.0840, lon:-115.1537, kalshi:'KXHIGHTLV',   tz:'America/Los_Angeles' },
+  { id:'bos',  name:'Boston',         lat:42.3656, lon:-71.0096,  kalshi:'KXHIGHTBOS',  tz:'America/New_York' },
+  { id:'nola', name:'New Orleans',    lat:29.9934, lon:-90.2580,  kalshi:'KXHIGHTNOLA', tz:'America/Chicago' },
+  { id:'dc',   name:'Washington DC',  lat:38.8512, lon:-77.0402,  kalshi:'KXHIGHTDC',   tz:'America/New_York' },
 ];
 
-const MODELS = ['gfs_seamless', 'ecmwf_ifs025', 'icon_seamless'];
-const MODEL_NAMES = { 'gfs_seamless': 'GFS', 'ecmwf_ifs025': 'ECMWF', 'icon_seamless': 'ICON' };
+var ENSEMBLE_MODELS = 'gfs_seamless,ecmwf_ifs025,icon_seamless,gem_global';
 
-function getTodayStr() {
-  return new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
-}
-function getTomorrowStr() {
-  var d = new Date(); d.setDate(d.getDate() + 1);
-  return d.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
-}
+function getTodayStr() { return new Date().toLocaleDateString('en-CA', { timeZone:'America/New_York' }); }
+function getTomorrowStr() { var d=new Date(); d.setDate(d.getDate()+1); return d.toLocaleDateString('en-CA', { timeZone:'America/New_York' }); }
 
 async function safeFetch(url, timeout) {
-  timeout = timeout || 5000;
-  var controller = new AbortController();
-  var timer = setTimeout(function() { controller.abort(); }, timeout);
+  timeout = timeout || 6000;
+  var ctrl = new AbortController();
+  var t = setTimeout(function(){ ctrl.abort(); }, timeout);
   try {
-    var res = await fetch(url, {
-      signal: controller.signal,
-      headers: { 'User-Agent': 'WeatherQuant/1.0', 'Accept': 'application/json' }
-    });
-    clearTimeout(timer);
-    if (!res.ok) return null;
-    return await res.json();
-  } catch(e) {
-    clearTimeout(timer);
-    return null;
-  }
+    var r = await fetch(url, { signal: ctrl.signal, headers: { 'User-Agent':'WeatherQuant/3.0', 'Accept':'application/json' } });
+    clearTimeout(t);
+    if (!r.ok) return null;
+    return await r.json();
+  } catch(e) { clearTimeout(t); return null; }
 }
 
-// Multi-model forecast — returns { "2026-04-14": { highs: [{source, temp}], lows: [...] } }
-async function getMultiModelForecasts(city) {
-  var url = 'https://api.open-meteo.com/v1/forecast?latitude=' + city.lat
+async function getEnsembleForecast(city) {
+  var url = 'https://ensemble-api.open-meteo.com/v1/ensemble?latitude=' + city.lat
     + '&longitude=' + city.lon
-    + '&daily=temperature_2m_max,temperature_2m_min'
-    + '&temperature_unit=fahrenheit&timezone=auto&forecast_days=3'
-    + '&models=' + MODELS.join(',');
+    + '&hourly=temperature_2m&models=' + ENSEMBLE_MODELS
+    + '&temperature_unit=fahrenheit&timezone=auto&forecast_days=3';
+  var data = await safeFetch(url, 14000);
+  if (!data || !data.hourly || !data.hourly.time) return null;
 
-  var data = await safeFetch(url, 8000);
-  if (!data || !data.daily || !data.daily.time) return null;
+  var hourly = data.hourly;
+  var memberKeys = [];
+  for (var k in hourly) if (k.indexOf('temperature_2m_member') === 0) memberKeys.push(k);
+  if (hourly.temperature_2m && Array.isArray(hourly.temperature_2m)) memberKeys.push('temperature_2m');
+  if (memberKeys.length === 0) return null;
 
-  var daily = data.daily;
-  var result = {};
+  var today = getTodayStr();
+  var tomorrow = getTomorrowStr();
+  var todayHighs = [], tomorrowHighs = [];
+  var times = hourly.time;
 
-  for (var d = 0; d < daily.time.length; d++) {
-    var date = daily.time[d];
-    result[date] = { highs: [], lows: [] };
-
-    for (var m = 0; m < MODELS.length; m++) {
-      var model = MODELS[m];
-      var highVal = daily['temperature_2m_max_' + model] ? daily['temperature_2m_max_' + model][d] : null;
-      var lowVal = daily['temperature_2m_min_' + model] ? daily['temperature_2m_min_' + model][d] : null;
-
-      if (highVal !== null && highVal !== undefined) {
-        result[date].highs.push({ source: MODEL_NAMES[model] || model, temp: highVal });
-      }
-      if (lowVal !== null && lowVal !== undefined) {
-        result[date].lows.push({ source: MODEL_NAMES[model] || model, temp: lowVal });
-      }
+  for (var m=0; m<memberKeys.length; m++) {
+    var series = hourly[memberKeys[m]];
+    if (!Array.isArray(series)) continue;
+    var tMax=null, tmMax=null;
+    for (var h=0; h<times.length; h++) {
+      var day = String(times[h]).substring(0,10);
+      var v = series[h];
+      if (v===null||v===undefined||isNaN(v)) continue;
+      if (day === today) { if (tMax===null||v>tMax) tMax = v; }
+      else if (day === tomorrow) { if (tmMax===null||v>tmMax) tmMax = v; }
     }
-
-    // Fallback to default keys if multi-model didn't return
-    if (result[date].highs.length === 0 && daily.temperature_2m_max) {
-      var fb = daily.temperature_2m_max[d];
-      if (fb !== null && fb !== undefined) result[date].highs.push({ source: 'Open-Meteo', temp: fb });
-    }
-    if (result[date].lows.length === 0 && daily.temperature_2m_min) {
-      var fbl = daily.temperature_2m_min[d];
-      if (fbl !== null && fbl !== undefined) result[date].lows.push({ source: 'Open-Meteo', temp: fbl });
-    }
+    if (tMax !== null) todayHighs.push(tMax);
+    if (tmMax !== null) tomorrowHighs.push(tmMax);
   }
-  return result;
+
+  return { today: todayHighs, tomorrow: tomorrowHighs, totalMembers: memberKeys.length };
 }
 
-function computeConsensus(modelData, dateStr) {
-  if (!modelData || !modelData[dateStr]) return { high: null, low: null, sourceCount: 0, spread: 0, sources: [] };
-  var entry = modelData[dateStr];
-  var highs = entry.highs.map(function(h) { return h.temp; });
-  var lows = entry.lows.map(function(l) { return l.temp; });
-  var sources = entry.highs.map(function(h) { return h.source; });
+async function getBias(cityId) {
+  try {
+    var b = await kv.get('bias:' + cityId);
+    if (!b) return null;
+    var obj = typeof b === 'string' ? JSON.parse(b) : b;
+    if (!obj || typeof obj.meanError !== 'number' || (obj.count||0) < 3) return null;
+    return obj.meanError;
+  } catch(e) { return null; }
+}
 
-  var avgHigh = highs.length ? Math.round(highs.reduce(function(a, b) { return a + b; }, 0) / highs.length * 10) / 10 : null;
-  var avgLow = lows.length ? Math.round(lows.reduce(function(a, b) { return a + b; }, 0) / lows.length * 10) / 10 : null;
+function applyBias(members, e) { if (!e || !members.length) return members; return members.map(function(m){ return m - e; }); }
 
-  var spread = 0;
-  if (highs.length > 1) {
-    spread = Math.round((Math.max.apply(null, highs) - Math.min.apply(null, highs)) * 10) / 10;
-  }
+function summarize(members) {
+  if (!members || !members.length) return { mean:null, std:null, count:0 };
+  var n = members.length, sum = 0;
+  for (var i=0;i<n;i++) sum += members[i];
+  var mean = sum/n, sq = 0;
+  for (var j=0;j<n;j++) sq += (members[j]-mean)*(members[j]-mean);
+  return { mean: Math.round(mean*10)/10, std: Math.round(Math.sqrt(sq/n)*10)/10, count: n };
+}
 
-  return { high: avgHigh, low: avgLow, sourceCount: highs.length, spread: spread, sources: sources };
+function tempInBracket(t, b) {
+  if (!b || t === null) return false;
+  var s = String(b).toLowerCase();
+  var r = s.match(/(\d+)°?\s*to\s*(\d+)/);
+  var be = s.match(/(\d+)°?\s*or\s*below/);
+  var ab = s.match(/(\d+)°?\s*or\s*above/);
+  if (r) return t >= parseInt(r[1]) && t <= parseInt(r[2]) + 0.9;
+  if (be) return t <= parseInt(be[1]) + 0.9;
+  if (ab) return t >= parseInt(ab[1]);
+  return false;
+}
+
+function computeBracketProbs(members, markets) {
+  if (!members.length || !markets.length) return [];
+  var n = members.length;
+  return markets.map(function(m) {
+    var hits = 0;
+    for (var i=0;i<n;i++) if (tempInBracket(members[i], m.subtitle)) hits++;
+    var price = Math.max(parseFloat(m.last_price_dollars || m.last_price) || 0, parseFloat(m.yes_ask_dollars || m.yes_ask) || 0);
+    return {
+      ticker: m.ticker,
+      bracket: m.yes_sub_title || m.subtitle || '',
+      probability: Math.round((hits/n) * 1000) / 1000,
+      marketPrice: price,
+      volume: parseInt(m.volume_fp || m.volume) || 0
+    };
+  });
 }
 
 async function getKalshi(seriesTicker) {
@@ -123,125 +133,101 @@ async function getKalshi(seriesTicker) {
   var data = await safeFetch(url);
   if (!data || !data.events || !data.events.length) return null;
 
-  var today = getTodayStr();
-  var tomorrow = getTomorrowStr();
-  var todayEvent = null, tomorrowEvent = null;
+  var today = getTodayStr(), tomorrow = getTomorrowStr();
+  var todayEv = null, tomEv = null;
 
-  for (var e = 0; e < data.events.length; e++) {
+  for (var e=0;e<data.events.length;e++) {
     var ev = data.events[e];
     if (!ev.markets || !ev.markets.length) continue;
-    var tickerMatch = ev.event_ticker ? ev.event_ticker.match(/(\d{2})([A-Z]{3})(\d{2})$/) : null;
-    var marketDate = '';
-    if (tickerMatch) {
-      var months = { JAN:'01',FEB:'02',MAR:'03',APR:'04',MAY:'05',JUN:'06',JUL:'07',AUG:'08',SEP:'09',OCT:'10',NOV:'11',DEC:'12' };
-      marketDate = '20' + tickerMatch[1] + '-' + (months[tickerMatch[2]] || '01') + '-' + tickerMatch[3];
+    var tm = ev.event_ticker ? ev.event_ticker.match(/(\d{2})([A-Z]{3})(\d{2})$/) : null;
+    var d = '';
+    if (tm) {
+      var mo = { JAN:'01',FEB:'02',MAR:'03',APR:'04',MAY:'05',JUN:'06',JUL:'07',AUG:'08',SEP:'09',OCT:'10',NOV:'11',DEC:'12' };
+      d = '20' + tm[1] + '-' + (mo[tm[2]]||'01') + '-' + tm[3];
     }
-    if (marketDate !== today && marketDate !== tomorrow) continue;
-
-    var sorted = ev.markets.slice().sort(function(a, b) {
-      var pa = parseFloat(a.last_price_dollars || a.last_price) || parseFloat(a.yes_ask_dollars || a.yes_ask) || 0;
-      var pb = parseFloat(b.last_price_dollars || b.last_price) || parseFloat(b.yes_ask_dollars || b.yes_ask) || 0;
-      return pb - pa;
-    });
-
-    var fav = sorted[0];
-    var favPrice = parseFloat(fav.last_price_dollars || fav.last_price) || parseFloat(fav.yes_ask_dollars || fav.yes_ask) || 0;
-    var result = {
-      marketDate: marketDate,
-      eventTicker: ev.event_ticker,
-      marketFavorite: fav.yes_sub_title || fav.subtitle || '',
-      marketFavoritePrice: favPrice
-    };
-
-    if (marketDate === today) todayEvent = result;
-    if (marketDate === tomorrow) tomorrowEvent = result;
+    if (d !== today && d !== tomorrow) continue;
+    var result = { marketDate: d, eventTicker: ev.event_ticker, markets: ev.markets };
+    if (d === today) todayEv = result;
+    if (d === tomorrow) tomEv = result;
   }
-  return todayEvent || tomorrowEvent || null;
+  return todayEv || tomEv || null;
 }
 
 export default async function handler(req, res) {
   var cronHeader = req.headers['x-vercel-cron'];
-  var manualKey = req.query.key;
-  if (!cronHeader && manualKey !== 'snapshot2026') {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
+  if (!cronHeader && req.query.key !== 'snapshot2026') return res.status(401).json({ error:'Unauthorized' });
 
   try {
     var today = getTodayStr();
     var snapshots = [];
 
-    for (var i = 0; i < CITIES.length; i++) {
+    for (var i=0; i<CITIES.length; i++) {
       var city = CITIES[i];
-      var modelData = await getMultiModelForecasts(city);
+      var ens = await getEnsembleForecast(city);
       var kalshi = await getKalshi(city.kalshi);
+      var bias = await getBias(city.id);
 
       var targetDate = (kalshi && kalshi.marketDate) || today;
-      var consensus = computeConsensus(modelData, targetDate);
+      var rawMembers = ens ? (targetDate === today ? ens.today : ens.tomorrow) : [];
+      var members = applyBias(rawMembers.slice(), bias);
+      var sum = summarize(members);
+      var bracketProbs = kalshi ? computeBracketProbs(members, kalshi.markets) : [];
 
-      // Determine signal type
-      var signalType = null;
-      if (consensus.high !== null && kalshi) {
-        var favBracket = kalshi.marketFavorite.toLowerCase();
-        var range = favBracket.match(/(\d+)°?\s*to\s*(\d+)/);
-        var below = favBracket.match(/(\d+)°?\s*or\s*below/);
-        var above = favBracket.match(/(\d+)°?\s*or\s*above/);
-        var forecastInFav = false;
-        if (range && consensus.high >= parseInt(range[1]) && consensus.high <= parseInt(range[2]) + 0.9) forecastInFav = true;
-        if (below && consensus.high <= parseInt(below[1]) + 0.9) forecastInFav = true;
-        if (above && consensus.high >= parseInt(above[1])) forecastInFav = true;
-
-        // Suppress divergence if market is settled ($0.90+)
-        if (forecastInFav || kalshi.marketFavoritePrice >= 0.90) {
-          signalType = forecastInFav ? 'ALIGNED' : 'SETTLED';
-        } else {
-          signalType = 'DIVERGENCE';
+      // Find market favorite + our top probability bracket
+      var marketFav = null, marketFavPrice = 0;
+      var topProb = null, topProbVal = 0;
+      for (var b=0; b<bracketProbs.length; b++) {
+        if (bracketProbs[b].marketPrice > marketFavPrice) {
+          marketFav = bracketProbs[b].bracket;
+          marketFavPrice = bracketProbs[b].marketPrice;
+        }
+        if (bracketProbs[b].probability > topProbVal) {
+          topProb = bracketProbs[b].bracket;
+          topProbVal = bracketProbs[b].probability;
         }
       }
 
-      var snapshot = {
+      snapshots.push({
         cityId: city.id,
         cityName: city.name,
         targetDate: targetDate,
-        forecastHigh: consensus.high,
-        sourceCount: consensus.sourceCount,
-        modelSpread: consensus.spread,
-        sources: consensus.sources,
-        marketFavorite: kalshi ? kalshi.marketFavorite : null,
-        marketFavoritePrice: kalshi ? kalshi.marketFavoritePrice : null,
+        // Ensemble summary
+        forecastHigh: sum.mean,          // for backwards compat
+        ensembleMean: sum.mean,
+        ensembleStd: sum.std,
+        memberCount: sum.count,
+        biasApplied: bias,
+        // Full bracket distribution
+        bracketProbs: bracketProbs,
+        // Market info
+        marketFavorite: marketFav,
+        marketFavoritePrice: marketFavPrice,
+        topProbBracket: topProb,
+        topProbability: Math.round(topProbVal * 1000) / 1000,
         eventTicker: kalshi ? kalshi.eventTicker : null,
-        signalType: signalType,
         snapshotTime: new Date().toISOString(),
         actualHigh: null,
-        result: null
-      };
+        result: null,
+        brierScore: null
+      });
 
-      snapshots.push(snapshot);
-      await new Promise(function(r) { setTimeout(r, 300); });
+      await new Promise(function(r){ setTimeout(r, 250); });
     }
 
-    var snapshotDate = snapshots[0] ? snapshots[0].targetDate : today;
-    await kv.set('snapshot:' + snapshotDate, snapshots);
+    var snapDate = snapshots[0] ? snapshots[0].targetDate : today;
+    await kv.set('snapshot:' + snapDate, snapshots);
 
-    var dateList = await kv.get('snapshot_dates');
-    var dates = [];
-    if (dateList) {
-      dates = typeof dateList === 'string' ? JSON.parse(dateList) : dateList;
-    }
-    if (dates.indexOf(snapshotDate) === -1) {
-      dates.push(snapshotDate);
+    var dl = await kv.get('snapshot_dates');
+    var dates = dl ? (typeof dl === 'string' ? JSON.parse(dl) : dl) : [];
+    if (dates.indexOf(snapDate) === -1) {
+      dates.push(snapDate);
       dates.sort();
       await kv.set('snapshot_dates', dates);
     }
 
-    res.status(200).json({
-      success: true,
-      date: snapshotDate,
-      cities: snapshots.length,
-      snapshots: snapshots
-    });
-
-  } catch (err) {
+    res.status(200).json({ success:true, date:snapDate, cities:snapshots.length, snapshots:snapshots });
+  } catch(err) {
     console.error('Snapshot error:', err);
-    res.status(500).json({ error: 'Snapshot failed', detail: err.message });
+    res.status(500).json({ error:'Snapshot failed', detail:err.message });
   }
 }
