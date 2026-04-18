@@ -159,10 +159,9 @@ export default async function handler(req, res) {
 
   try {
     var today = getTodayStr();
-    var snapshots = [];
 
-    for (var i=0; i<CITIES.length; i++) {
-      var city = CITIES[i];
+    // Parallelize all 13 cities — fits under cron-job.org's 30s free-tier cap
+    var snapshots = await Promise.all(CITIES.map(async function(city) {
       var ens = await getEnsembleForecast(city);
       var kalshi = await getKalshi(city.kalshi);
       var bias = await getBias(city.id);
@@ -187,7 +186,7 @@ export default async function handler(req, res) {
         }
       }
 
-      snapshots.push({
+      return {
         cityId: city.id,
         cityName: city.name,
         targetDate: targetDate,
@@ -209,10 +208,8 @@ export default async function handler(req, res) {
         actualHigh: null,
         result: null,
         brierScore: null
-      });
-
-      await new Promise(function(r){ setTimeout(r, 250); });
-    }
+      };
+    }));
 
     var snapDate = snapshots[0] ? snapshots[0].targetDate : today;
     await kv.set('snapshot:' + snapDate, snapshots);
