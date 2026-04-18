@@ -240,18 +240,20 @@ function getSignalBadge(s){
 
 function getSignalDetail(s){
   if(!s)return'';
-  var evClass=s.bestEV>0?'ev-pos':(s.bestEV<0?'ev-neg':'');
+  var ourPct=Math.round(s.bestProbability*100);
   switch(s.type){
-    case'OPPORTUNITY':case'WATCH':
-      return'Best bracket: <strong>'+s.bestBracket+'</strong> — our '+formatProb(s.bestProbability)+' vs market '+formatPrice(s.bestMarketPrice)+' = <span class="'+evClass+'">'+formatEV(s.bestEV)+' EV</span>';
+    case'OPPORTUNITY':
+      return'Our forecast says <strong>'+s.bestBracket+'</strong> has a <strong>'+ourPct+'% chance</strong> of winning today — but Kalshi is only charging <strong>'+formatPrice(s.bestMarketPrice)+'</strong>. Worth taking a closer look at this trade.';
+    case'WATCH':
+      return'Our forecast says <strong>'+s.bestBracket+'</strong> has a <strong>'+ourPct+'% chance</strong> of winning, and it\'s priced at <strong>'+formatPrice(s.bestMarketPrice)+'</strong> on Kalshi. Small edge worth watching.';
     case'ALIGNED':
-      return'Our top pick & market agree on <strong>'+s.marketFavorite+'</strong> ('+formatPrice(s.marketFavoritePrice)+'). No edge.';
+      return'We agree with the market. <strong>'+s.marketFavorite+'</strong> is most likely to win (priced at '+formatPrice(s.marketFavoritePrice)+'). No clear edge today.';
     case'NO_EDGE':
-      return'Market pricing matches our probabilities. Best EV is '+formatEV(s.bestEV)+'.';
+      return'Nothing stands out — market prices match our forecast across every bracket today.';
     case'LOW_DATA':
-      return'Only '+(s.memberCount||0)+' ensemble members available — waiting for more data';
+      return'Still loading forecast data — check back in a few minutes.';
     case'LOW_VOLUME':
-      return'Market volume only '+(s.totalVolume||0)+' contracts — unreliable pricing';
+      return'This market has too few trades to trust yet (only '+(s.totalVolume||0)+' contracts so far).';
     default:return'';
   }
 }
