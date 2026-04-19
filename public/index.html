@@ -238,18 +238,19 @@ function getSignalBadge(s){
   }
 }
 
-function getSignalDetail(s){
+function getSignalDetail(s,isTomorrow){
   if(!s)return'';
   var ourPct=Math.round(s.bestProbability*100);
+  var dayWord=isTomorrow?'tomorrow':'today';
   switch(s.type){
     case'OPPORTUNITY':
-      return'Our forecast says <strong>'+s.bestBracket+'</strong> has a <strong>'+ourPct+'% chance</strong> of winning today — but Kalshi is only charging <strong>'+formatPrice(s.bestMarketPrice)+'</strong>. Worth taking a closer look at this trade.';
+      return'Our forecast says <strong>'+s.bestBracket+'</strong> has a <strong>'+ourPct+'% chance</strong> of winning '+dayWord+' — but Kalshi is only charging <strong>'+formatPrice(s.bestMarketPrice)+'</strong>. Worth taking a closer look at this trade.';
     case'WATCH':
-      return'Our forecast says <strong>'+s.bestBracket+'</strong> has a <strong>'+ourPct+'% chance</strong> of winning, and it\'s priced at <strong>'+formatPrice(s.bestMarketPrice)+'</strong> on Kalshi. Small edge worth watching.';
+      return'Our forecast says <strong>'+s.bestBracket+'</strong> has a <strong>'+ourPct+'% chance</strong> of winning '+dayWord+', and it\'s priced at <strong>'+formatPrice(s.bestMarketPrice)+'</strong> on Kalshi. Small edge worth watching.';
     case'ALIGNED':
-      return'We agree with the market. <strong>'+s.marketFavorite+'</strong> is most likely to win (priced at '+formatPrice(s.marketFavoritePrice)+'). No clear edge today.';
+      return'We agree with the market. <strong>'+s.marketFavorite+'</strong> is most likely to win (priced at '+formatPrice(s.marketFavoritePrice)+'). No clear edge '+dayWord+'.';
     case'NO_EDGE':
-      return'Nothing stands out — market prices match our forecast across every bracket today.';
+      return'Nothing stands out — market prices match our forecast across every bracket '+dayWord+'.';
     case'LOW_DATA':
       return'Still loading forecast data — check back in a few minutes.';
     case'LOW_VOLUME':
@@ -274,7 +275,7 @@ function renderCard(c,period){
   var url=getKalshiUrl(c.id,kalshi);
   var dateBadge='<div class="market-date-badge">📅 '+formatDate(dateStr)+'</div>';
   var badge=getSignalBadge(signal);
-  var detail=getSignalDetail(signal);
+  var detail=getSignalDetail(signal,isTom);
   return '<div class="city-card'+(isTom?' tomorrow':'')+'" onclick="openCity(\''+c.id+'\',\''+period+'\')">'+
     '<div class="card-top"><div><div class="city-name">'+c.name+'</div>'+badge+'</div>'+tempBlock+'</div>'+
     dateBadge+renderEnsembleStrip(summary)+
@@ -308,12 +309,10 @@ function openCity(id,period){
     '</div>';
   }
   if(probs&&probs.length){
-    // Find best EV for highlighting
     var sortedByEV=probs.slice().sort(function(a,b){return b.ev-a.ev;});
     var bestTicker=sortedByEV[0]?sortedByEV[0].ticker:null;
     h+='<div class="section-label" style="margin-top:0">Bracket Distribution</div>';
     h+='<table class="bracket-table"><thead><tr><th>Bracket</th><th>Our Prob</th><th>Market</th><th>EV</th><th>Vol</th></tr></thead><tbody>';
-    // Sort by probability descending for display
     var sorted=probs.slice().sort(function(a,b){return b.probability-a.probability;});
     for(var i=0;i<sorted.length;i++){
       var p=sorted[i];
@@ -331,7 +330,7 @@ function openCity(id,period){
     }
     h+='</tbody></table>';
     if(signal){
-      h+='<div style="margin-bottom:16px">'+getSignalBadge(signal)+' <span style="font-size:12px;color:#94a3b8;margin-left:8px">'+getSignalDetail(signal)+'</span></div>';
+      h+='<div style="margin-bottom:16px">'+getSignalBadge(signal)+' <span style="font-size:12px;color:#94a3b8;margin-left:8px">'+getSignalDetail(signal,isTom)+'</span></div>';
     }
     h+='<a href="'+url+'" target="_blank" class="kalshi-link">Trade This Market on Kalshi →</a>';
   }else{
@@ -351,7 +350,6 @@ function loadOverview(){
     ALL_DATA=json.cities||[];
     dot.className='status-dot live';txt.textContent='Live';nextRefreshIn=120;
 
-    // Group by signal category
     var opp=ALL_DATA.filter(function(c){return getSignalCategory(c.signalToday)==='opportunity'});
     var watch=ALL_DATA.filter(function(c){return getSignalCategory(c.signalToday)==='watch'});
     var aligned=ALL_DATA.filter(function(c){return getSignalCategory(c.signalToday)==='aligned'});
@@ -364,7 +362,6 @@ function loadOverview(){
     if(!h)h='<div class="loading-container"><h2>No active markets for today</h2><p>Check tomorrow\'s section below.</p></div>';
     document.getElementById('mainContent').innerHTML=h;
 
-    // Tomorrow
     var tom=ALL_DATA.filter(function(c){return c.kalshiTomorrow});
     var th='';
     if(tom.length){
